@@ -1,29 +1,38 @@
-import type { PlaceOrderInput, Order } from "../types/checkout";
-import { mockPlaceOrder } from "./mockCheckoutService";
 
-const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API !== "false";
+import type { Order, PlaceOrderInput } from "../types/checkout";
+import { useApi } from "../../../lib/api";
 
 export async function placeOrder(
   input: PlaceOrderInput,
+  getToken: () => Promise<string | null>,
 ): Promise<Order> {
-  if (USE_MOCK_API) {
-    return mockPlaceOrder(input);
+  const token = await getToken();
+
+  if (!token) {
+    throw new Error("Your session has expired. Please sign in again.");
   }
 
-  const response = await fetch(
-    `${import.meta.env.VITE_API_URL}/orders`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(input),
+  const apiUrl = import.meta.env.VITE_API_URL;
+
+  if (!apiUrl) {
+    throw new Error("VITE_API_URL is not configured.");
+  }
+
+  const response = await fetch(`${apiUrl}/api/orders`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
-  );
+    body: JSON.stringify({
+      addressId: input.addressId,
+      paymentMethod: input.paymentMethod,
+    }),
+  });
 
   const result = await response.json();
 
-  if (!response.ok) {
+  if (!response.ok || !result.success) {
     throw new Error(result.message || "Unable to place your order.");
   }
 

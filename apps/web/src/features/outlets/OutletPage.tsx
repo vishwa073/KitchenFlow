@@ -1,36 +1,119 @@
-
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-import { outlets as outletData } from "./data/outlets";
-import { getServiceableOutlets } from "./utils/serviceability";
+import { useApi } from "../../lib/api";
+import {
+  checkOutletServiceability,
+  fetchOutlets,
+  type ServiceabilityResponse,
+} from "./api/outlet.api";
+
 import type { Outlet, OutletCategory } from "./types/outlet";
-import type { CustomerLocation } from "./types/customerLocation";
+import type { Coordinates } from "../onboarding/components/LocationPicker";
 
 import OutletSearch from "./components/OutletSearch";
 import OutletGrid from "./components/OutletGrid";
 import LocationSelector from "./components/LocationSelector";
 
 export default function OutletPage() {
+  const { apiFetch } = useApi();
+  const apiFetchRef = useRef(apiFetch);
+
+  const [outletData, setOutletData] = useState<Outlet[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
+  const [serviceability, setServiceability] =
+    useState<ServiceabilityResponse | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
+  const [serviceabilityError, setServiceabilityError] = useState("");
+
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<OutletCategory>("All");
-  const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null);
-  const [selectedLocation, setSelectedLocation] =
-    useState<CustomerLocation | null>(null);
 
   const navigate = useNavigate();
 
+  // Load active outlets from the backend.
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadOutlets() {
+      try {
+        setIsLoading(true);
+        setLoadError("");
+
+        const outlets = await fetchOutlets(apiFetchRef.current);
+
+        if (isMounted) {
+          setOutletData(outlets);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setLoadError(
+            error instanceof Error ? error.message : "Unable to load outlets.",
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadOutlets();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Reset the previous result when the map location changes.
+  function handleLocationChange(nextCoordinates: Coordinates) {
+    setCoordinates(nextCoordinates);
+    setServiceability(null);
+    setServiceabilityError("");
+  }
+
+  // Check delivery using the backend serviceability endpoint.
+  async function handleCheckDelivery() {
+    if (!coordinates) return;
+
+    try {
+      setIsChecking(true);
+      setServiceabilityError("");
+      setServiceability(null);
+
+      const result = await checkOutletServiceability(
+        apiFetchRef.current,
+        coordinates,
+      );
+
+      setServiceability(result);
+    } catch (error) {
+      setServiceabilityError(
+        error instanceof Error
+          ? error.message
+          : "Unable to check delivery availability.",
+      );
+    } finally {
+      setIsChecking(false);
+    }
+  }
+
+  // Only apply the backend's serviceable outlet IDs after a check.
   const serviceableOutlets = useMemo(() => {
-    if (!selectedLocation) {
+    if (!serviceability) {
       return outletData;
     }
 
-    return getServiceableOutlets(outletData, {
-      latitude: selectedLocation.latitude,
-      longitude: selectedLocation.longitude,
-    });
-  }, [selectedLocation]);
+    const serviceableIds = new Set(
+      serviceability.outlets.map((outlet) => outlet.id),
+    );
+
+    return outletData.filter((outlet) => serviceableIds.has(outlet.id));
+  }, [outletData, serviceability]);
 
   const filteredOutlets = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -40,31 +123,27 @@ export default function OutletPage() {
         category === "All" || outlet.category === category;
 
       const matchesSearch =
-        normalizedSearch.length === 0 ||
+        !normalizedSearch ||
         outlet.name.toLowerCase().includes(normalizedSearch) ||
-        outlet.category.toLowerCase().includes(normalizedSearch) ||
-        outlet.description.toLowerCase().includes(normalizedSearch) ||
-        outlet.tags.some((tag) =>
-          tag.toLowerCase().includes(normalizedSearch)
+        outlet.category?.toLowerCase().includes(normalizedSearch) ||
+        outlet.description?.toLowerCase().includes(normalizedSearch) ||
+        outlet.tags?.some((tag) =>
+          tag.toLowerCase().includes(normalizedSearch),
         );
 
       return matchesCategory && matchesSearch;
     });
   }, [serviceableOutlets, search, category]);
-
   const availableCount = filteredOutlets.filter(
-    (outlet) => outlet.isAvailable
+    (outlet) => outlet.isAvailable ?? outlet.isActive,
   ).length;
 
   function handleSelectOutlet(outlet: Outlet) {
-    if (!outlet.isAvailable) return;
+    const isAvailable = outlet.isAvailable ?? outlet.isActive;
 
-    setSelectedOutlet(outlet);
-  }
+    if (!isAvailable) return;
 
-  function handleLocationSelect(location: CustomerLocation) {
-    setSelectedLocation(location);
-    setSelectedOutlet(null);
+    navigate(`/outlets/${outlet.id}/menu`);
   }
 
   return (
@@ -77,9 +156,7 @@ export default function OutletPage() {
             </div>
 
             <div>
-              <h1 className="text-lg font-bold tracking-tight">
-                KitchenFlow
-              </h1>
+              <h1 className="text-lg font-bold tracking-tight">KitchenFlow</h1>
               <p className="text-xs text-stone-500">
                 Hyderabad food, simplified
               </p>
@@ -89,7 +166,9 @@ export default function OutletPage() {
           <div className="hidden items-center gap-2 text-sm text-stone-500 sm:flex">
             <MapPin size={16} />
             <span>
-              {selectedLocation?.label ?? "Choose delivery location"}
+              {coordinates
+                ? `${coordinates.latitude.toFixed(4)}, ${coordinates.longitude.toFixed(4)}`
+                : "Choose delivery location"}
             </span>
           </div>
         </div>
@@ -110,20 +189,30 @@ export default function OutletPage() {
             favorites.
           </p>
         </div>
-
         <div className="mb-6 rounded-2xl border border-stone-200 bg-white p-4 sm:p-5">
           <LocationSelector
-            selectedLocation={selectedLocation}
-            onSelect={handleLocationSelect}
+            value={coordinates}
+            onChange={handleLocationChange}
+            onCheck={handleCheckDelivery}
+            isChecking={isChecking}
           />
 
-          {selectedLocation && (
-            <p className="mt-3 text-sm text-stone-500">
-              Showing outlets that deliver to {selectedLocation.label}.
+          {serviceability && (
+            <p
+              className={`mt-3 text-sm font-medium ${
+                serviceability.serviceable ? "text-green-700" : "text-amber-700"
+              }`}
+            >
+              {serviceability.serviceable
+                ? `${serviceability.count} outlet(s) deliver to this location.`
+                : "No outlets currently deliver to this location."}
             </p>
           )}
-        </div>
 
+          {serviceabilityError && (
+            <p className="mt-3 text-sm text-red-600">{serviceabilityError}</p>
+          )}
+        </div>
         <OutletSearch
           search={search}
           category={category}
@@ -136,27 +225,39 @@ export default function OutletPage() {
             <h3 className="text-xl font-semibold">Explore outlets</h3>
 
             <p className="mt-1 text-sm text-stone-500">
-              {availableCount} available
-              {filteredOutlets.length !== availableCount
-                ? ` · ${filteredOutlets.length} total matching`
-                : ""}
+              {!serviceability
+                ? `${filteredOutlets.length} outlets`
+                : serviceability.outlets.length === 0
+                  ? "No outlets deliver here"
+                  : `${serviceability.outlets.length} outlet(s) deliver to this location`}
             </p>
           </div>
         </div>
-
-        {selectedLocation && filteredOutlets.length === 0 ? (
+        {!serviceability ? (
+          <OutletGrid
+            outlets={filteredOutlets}
+            onSelectOutlet={handleSelectOutlet}
+          />
+        ) : serviceability.outlets.length === 0 ? (
           <div className="rounded-2xl border border-stone-200 bg-white px-6 py-12 text-center">
-            <MapPin
-              className="mx-auto mb-3 text-orange-600"
-              size={28}
-            />
+            <MapPin className="mx-auto mb-3 text-orange-600" size={28} />
 
             <h4 className="text-lg font-semibold">
-              No outlets deliver to this location
+              Sorry, we don’t deliver to this location
             </h4>
 
             <p className="mt-2 text-sm text-stone-500">
-              Try another Hyderabad area to find available outlets.
+              Choose another location on the map and check delivery again.
+            </p>
+          </div>
+        ) : filteredOutlets.length === 0 ? (
+          <div className="rounded-2xl border border-stone-200 bg-white px-6 py-12 text-center">
+            <h4 className="text-lg font-semibold">
+              No outlets match your search
+            </h4>
+
+            <p className="mt-2 text-sm text-stone-500">
+              Try a different search term or category.
             </p>
           </div>
         ) : (
@@ -167,29 +268,7 @@ export default function OutletPage() {
         )}
       </section>
 
-      {selectedOutlet && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-stone-200 bg-white/95 p-4 shadow-[0_-8px_30px_rgba(0,0,0,0.06)] backdrop-blur">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-xs text-stone-500">Selected outlet</p>
-              <p className="truncate font-semibold">
-                {selectedOutlet.name}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                navigate(`/outlets/${selectedOutlet.id}/menu`);
-              }}
-              className="flex shrink-0 items-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-700"
-            >
-              View menu
-              <ArrowRight size={16} />
-            </button>
-          </div>
-        </div>
-      )}
+  
     </main>
   );
 }

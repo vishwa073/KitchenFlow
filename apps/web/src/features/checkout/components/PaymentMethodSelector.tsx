@@ -1,4 +1,5 @@
-import type { PaymentMethod } from "../types/checkout";
+
+type PaymentMethod = "UPI" | "CARD";
 
 interface PaymentMethodSelectorProps {
   paymentMethod: PaymentMethod;
@@ -7,23 +8,18 @@ interface PaymentMethodSelectorProps {
 
 const paymentOptions: {
   value: PaymentMethod;
-  label: string;
+  title: string;
   description: string;
 }[] = [
   {
-    value: "upi",
-    label: "UPI",
-    description: "Pay using UPI apps",
+    value: "UPI",
+    title: "UPI",
+    description: "Pay using a UPI app",
   },
   {
-    value: "card",
-    label: "Credit / Debit Card",
+    value: "CARD",
+    title: "Credit or debit card",
     description: "Pay using your card",
-  },
-  {
-    value: "cod",
-    label: "Cash on Delivery",
-    description: "Pay when your order arrives",
   },
 ];
 
@@ -33,47 +29,47 @@ export default function PaymentMethodSelector({
 }: PaymentMethodSelectorProps) {
   return (
     <section className="rounded-2xl border bg-white p-6">
-      <h2 className="mb-2 text-lg font-semibold text-gray-900">
+      <h2 className="mb-4 text-lg font-semibold text-gray-900">
         Payment method
       </h2>
 
-      <p className="mb-5 text-sm text-gray-500">
-        Choose how you want to pay.
-      </p>
-
       <div className="space-y-3">
-        {paymentOptions.map((option) => (
-          <label
-            key={option.value}
-            className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition ${
-              paymentMethod === option.value
-                ? "border-orange-500 bg-orange-50"
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-          >
-            <input
-              type="radio"
-              name="paymentMethod"
-              value={option.value}
-              checked={paymentMethod === option.value}
-              onChange={() => setPaymentMethod(option.value)}
-              className="accent-orange-600"
-            />
+        {paymentOptions.map((option) => {
+          const selected = paymentMethod === option.value;
 
-            <div>
-              <p className="font-medium text-gray-900">
-                {option.label}
-              </p>
-              <p className="text-sm text-gray-500">
-                {option.description}
-              </p>
-            </div>
-          </label>
-        ))}
+          return (
+            <label
+              key={option.value}
+              className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
+                selected
+                  ? "border-orange-500 bg-orange-50"
+                  : "border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              <input
+                type="radio"
+                name="paymentMethod"
+                value={option.value}
+                checked={selected}
+                onChange={() => setPaymentMethod(option.value)}
+                className="mt-1 accent-orange-600"
+              />
+
+              <div>
+                <p className="font-medium text-gray-900">
+                  {option.title}
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  {option.description}
+                </p>
+              </div>
+            </label>
+          );
+        })}
       </div>
 
-      <p className="mt-4 text-xs text-gray-500">
-        Payment is currently a demo selection. No real payment is processed.
+      <p className="mt-4 rounded-lg bg-gray-50 p-3 text-xs text-gray-500">
+        Demo payment: payment processing is not connected yet.
       </p>
     </section>
   );

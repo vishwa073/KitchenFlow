@@ -1,6 +1,13 @@
+
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
-import { outlets } from "../outlets/data/outlets";
+import { useApi } from "../../lib/api";
+import {
+  fetchOutlets,
+} from "../outlets/api/outlet.api";
+import type { Outlet } from "../outlets/types/outlet";
+
 import { useCart } from "../cart/context/CartContext";
 import { useMenu } from "../../hooks/useMenu";
 
@@ -14,7 +21,62 @@ export default function MenuPage() {
   const { outletId } = useParams<{ outletId: string }>();
   const navigate = useNavigate();
 
-  const outlet = outlets.find((item) => item.id === outletId);
+  const { apiFetch } = useApi();
+  const apiFetchRef = useRef(apiFetch);
+
+  const [outlet, setOutlet] = useState<Outlet | null>(null);
+  const [outletLoading, setOutletLoading] = useState(true);
+  const [outletError, setOutletError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadOutlet() {
+      if (!outletId) {
+        setOutlet(null);
+        setOutletError("No outlet was selected.");
+        setOutletLoading(false);
+        return;
+      }
+
+      try {
+        setOutletLoading(true);
+        setOutletError("");
+
+        const allOutlets = await fetchOutlets(apiFetchRef.current);
+        const selectedOutlet = allOutlets.find(
+          (item) => item.id === outletId,
+        );
+
+        if (!selectedOutlet) {
+          throw new Error("This outlet could not be found.");
+        }
+
+        if (isMounted) {
+          setOutlet(selectedOutlet);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setOutlet(null);
+          setOutletError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load outlet details.",
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setOutletLoading(false);
+        }
+      }
+    }
+
+    void loadOutlet();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [outletId]);
 
   const {
     filteredItems,
@@ -29,10 +91,30 @@ export default function MenuPage() {
 
   const { addItem, cartCount } = useCart();
 
-  if (!outlet) {
+  if (outletLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-lg font-semibold">Outlet not found.</p>
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <p className="font-medium text-gray-600">
+          Loading outlet...
+        </p>
+      </div>
+    );
+  }
+
+  if (outletError || !outlet) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-50 px-4 text-center">
+        <p className="text-lg font-semibold text-gray-800">
+          {outletError || "Outlet not found."}
+        </p>
+
+        <button
+          type="button"
+          onClick={() => navigate("/outlets")}
+          className="rounded-xl bg-orange-600 px-4 py-2.5 font-semibold text-white hover:bg-orange-700"
+        >
+          Back to outlets
+        </button>
       </div>
     );
   }
@@ -41,7 +123,7 @@ export default function MenuPage() {
     <div className="min-h-screen bg-gray-50">
       <MenuHeader
         outletName={outlet.name}
-        servingArea={outlet.servingArea}
+        servingArea={outlet.area}
         cartCount={cartCount}
         onCartClick={() => navigate("/cart")}
       />
@@ -57,7 +139,7 @@ export default function MenuPage() {
           </h2>
 
           <p className="mt-2 text-sm text-gray-600 sm:text-base">
-            Freshly prepared favorites from your selected outlet.
+            Freshly prepared favorites from {outlet.name}.
           </p>
         </div>
 

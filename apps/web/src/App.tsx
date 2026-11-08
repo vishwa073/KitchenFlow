@@ -1,4 +1,3 @@
-
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import CheckoutPage from "./features/checkout/CheckoutPage";
@@ -12,6 +11,14 @@ import OrdersPage from "./features/orders/OrdersPage";
 import OrderTrackingPage from "./features/orders/OrderTrackingPage";
 import KitchenDisplayPage from "./features/kitchen/KitchenDisplayPage";
 import RequireAuth from "./features/auth/components/RequireAuth";
+import AuthMeTest from "./components/AuthMeTest";
+import OnboardingPage from "./features/onboarding/OnboardingPage";
+import PartyPage from "./features/customer/pages/PartyPage";
+import CustomerPage from "./features/customer/CustomerPage";
+import CustomerHome from "./features/customer/pages/CustomerHome";
+import CustomerOrders from "./features/customer/pages/CustomerOrders";
+import CustomerProfile from "./features/customer/pages/CustomerProfile";
+import PostAuthRedirect from "./features/auth/components/PostAuthRedirect";
 
 export default function App() {
   return (
@@ -19,12 +26,26 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           {/* Public routes */}
+          <Route
+            path="/post-auth"
+            element={
+              <RequireAuth>
+                <PostAuthRedirect />
+              </RequireAuth>
+            }
+          />
           <Route path="/" element={<LandingPage />} />
           <Route path="/outlets" element={<OutletPage />} />
           <Route path="/outlets/:outletId/menu" element={<MenuPage />} />
           <Route path="/cart" element={<CartPage />} />
 
-          {/* Protected customer routes */}
+          {/* Temporary onboarding test route */}
+          <Route path="/onboarding" element={<OnboardingPage />} />
+
+          {/* Temporary authentication test route */}
+          <Route path="/auth-test" element={<AuthMeTest />} />
+
+          {/* Protected checkout routes */}
           <Route
             path="/checkout"
             element={
@@ -43,6 +64,23 @@ export default function App() {
             }
           />
 
+          {/* Protected customer area with shared layout */}
+          <Route
+            path="/customer/:outletId"
+            element={
+              <RequireAuth>
+                <CustomerPage />
+              </RequireAuth>
+            }
+          >
+           <Route index element={<div />} />
+            <Route path="orders" element={<CustomerOrders />} />
+            <Route path="profile" element={<CustomerProfile />} />
+
+            <Route path="/customer/:outletId/party" element={<PartyPage />} />
+          </Route>
+
+          {/* Existing order routes */}
           <Route
             path="/orders"
             element={

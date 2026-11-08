@@ -1,5 +1,5 @@
 
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
   Minus,
@@ -12,11 +12,13 @@ import { useCart } from "./context/CartContext";
 
 export default function CartPage() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const {
     cart,
     cartCount,
     subtotal,
+    loading,
     updateQuantity,
     removeItem,
   } = useCart();
@@ -26,9 +28,25 @@ export default function CartPage() {
   const total = subtotal + deliveryFee + taxes;
 
   const formatPrice = (price: number) =>
-    `₹${price.toLocaleString("en-IN", {
+    `₹${Number(price).toLocaleString("en-IN", {
       maximumFractionDigits: 2,
     })}`;
+
+const goToCustomerHome = () => {
+  const returnTo = location.state?.returnTo;
+
+  if (returnTo) {
+    navigate(returnTo);
+    return;
+  }
+
+  if (cart.outletId) {
+    navigate(`/customer/${cart.outletId}`);
+    return;
+  }
+
+  navigate("/");
+};
 
   const handleCheckout = () => {
     if (cart.items.length === 0) return;
@@ -40,13 +58,14 @@ export default function CartPage() {
     <div className="min-h-screen bg-[#f8f7f4]">
       <header className="border-b border-gray-100 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5">
-          <Link
-            to="/outlets"
+          <button
+            type="button"
+            onClick={goToCustomerHome}
             className="flex items-center gap-2 text-sm font-medium text-gray-600 transition hover:text-orange-600"
           >
             <ArrowLeft size={18} />
             Continue shopping
-          </Link>
+          </button>
 
           <h1 className="text-xl font-bold text-gray-900">Your Cart</h1>
 
@@ -67,7 +86,13 @@ export default function CartPage() {
           </p>
         </div>
 
-        {cart.items.length === 0 ? (
+        {loading ? (
+          <div className="flex min-h-[420px] items-center justify-center rounded-3xl border border-gray-100 bg-white shadow-sm">
+            <p className="text-sm font-medium text-gray-500">
+              Loading your cart...
+            </p>
+          </div>
+        ) : cart.items.length === 0 ? (
           <div className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-gray-100 bg-white px-6 text-center shadow-sm">
             <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-orange-50 text-orange-500">
               <ShoppingBag size={36} />
@@ -82,12 +107,13 @@ export default function CartPage() {
               find something delicious.
             </p>
 
-            <Link
-              to="/outlets"
+            <button
+              type="button"
+              onClick={goToCustomerHome}
               className="mt-6 rounded-xl bg-orange-500 px-6 py-3 font-semibold text-white transition hover:bg-orange-600"
             >
-              Explore outlets
-            </Link>
+              Back to customer home
+            </button>
           </div>
         ) : (
           <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
@@ -103,72 +129,78 @@ export default function CartPage() {
               </div>
 
               <div className="divide-y divide-gray-100">
-                {cart.items.map(({ menuItem, quantity }) => (
-                  <article
-                    key={menuItem.id}
-                    className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center"
-                  >
-                    <img
-                      src={menuItem.image}
-                      alt={menuItem.name}
-                      className="h-24 w-full rounded-2xl object-cover sm:w-28"
-                    />
+                {cart.items.map(
+                  ({ id, menuItem, selectedVariant, quantity }) => (
+                    <article
+                      key={id}
+                      className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center"
+                    >
+                      <img
+                        src={menuItem.image}
+                        alt={menuItem.name}
+                        className="h-24 w-full rounded-2xl object-cover sm:w-28"
+                      />
 
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-semibold text-gray-900">
-                        {menuItem.name}
-                      </h4>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-semibold text-gray-900">
+                          {menuItem.name}
+                        </h4>
 
-                      <p className="mt-1 line-clamp-2 text-sm text-gray-500">
-                        {menuItem.description}
-                      </p>
+                        <p className="mt-1 line-clamp-2 text-sm text-gray-500">
+                          {menuItem.description}
+                        </p>
 
-                      <p className="mt-2 font-bold text-gray-900">
-                        {formatPrice(menuItem.price)}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-4 sm:flex-col sm:items-end">
-                      <div className="flex items-center gap-3 rounded-xl border border-gray-200 px-2 py-1.5">
-                        <button
-                          aria-label={`Decrease quantity of ${menuItem.name}`}
-                          onClick={() =>
-                            updateQuantity(menuItem.id, quantity - 1)
-                          }
-                          className="rounded-lg p-1 text-gray-600 transition hover:bg-orange-50 hover:text-orange-600"
-                        >
-                          <Minus size={16} />
-                        </button>
-
-                        <span className="min-w-5 text-center text-sm font-semibold">
-                          {quantity}
-                        </span>
-
-                        <button
-                          aria-label={`Increase quantity of ${menuItem.name}`}
-                          onClick={() =>
-                            updateQuantity(menuItem.id, quantity + 1)
-                          }
-                          className="rounded-lg p-1 text-gray-600 transition hover:bg-orange-50 hover:text-orange-600"
-                        >
-                          <Plus size={16} />
-                        </button>
+                        <p className="mt-2 font-bold text-gray-900">
+                          {formatPrice(selectedVariant.price)}
+                        </p>
                       </div>
 
-                      <p className="font-bold text-gray-900">
-                        {formatPrice(menuItem.price * quantity)}
-                      </p>
+                      <div className="flex items-center justify-between gap-4 sm:flex-col sm:items-end">
+                        <div className="flex items-center gap-3 rounded-xl border border-gray-200 px-2 py-1.5">
+                          <button
+                            type="button"
+                            aria-label={`Decrease quantity of ${menuItem.name}`}
+                            onClick={() =>
+                              void updateQuantity(id, quantity - 1)
+                            }
+                            className="rounded-lg p-1 text-gray-600 transition hover:bg-orange-50 hover:text-orange-600"
+                          >
+                            <Minus size={16} />
+                          </button>
 
-                      <button
-                        onClick={() => removeItem(menuItem.id)}
-                        className="flex items-center gap-1 text-xs font-medium text-gray-400 transition hover:text-red-500"
-                      >
-                        <Trash2 size={14} />
-                        Remove
-                      </button>
-                    </div>
-                  </article>
-                ))}
+                          <span className="min-w-5 text-center text-sm font-semibold">
+                            {quantity}
+                          </span>
+
+                          <button
+                            type="button"
+                            aria-label={`Increase quantity of ${menuItem.name}`}
+                            disabled={quantity >= 99}
+                            onClick={() =>
+                              void updateQuantity(id, quantity + 1)
+                            }
+                            className="rounded-lg p-1 text-gray-600 transition hover:bg-orange-50 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            <Plus size={16} />
+                          </button>
+                        </div>
+
+                        <p className="font-bold text-gray-900">
+                          {formatPrice(selectedVariant.price * quantity)}
+                        </p>
+
+                        <button
+                          type="button"
+                          onClick={() => void removeItem(id)}
+                          className="flex items-center gap-1 text-xs font-medium text-gray-400 transition hover:text-red-500"
+                        >
+                          <Trash2 size={14} />
+                          Remove
+                        </button>
+                      </div>
+                    </article>
+                  ),
+                )}
               </div>
             </section>
 
@@ -213,6 +245,7 @@ export default function CartPage() {
               </div>
 
               <button
+                type="button"
                 onClick={handleCheckout}
                 className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 py-3.5 font-semibold text-white transition hover:bg-orange-600"
               >

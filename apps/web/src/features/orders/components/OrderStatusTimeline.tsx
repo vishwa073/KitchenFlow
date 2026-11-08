@@ -1,53 +1,58 @@
+
 import type { OrderStatus } from "../types/order";
 
-interface OrderStatusTimelineProps {
+interface Props {
   status: OrderStatus;
 }
 
 const steps: { status: OrderStatus; label: string }[] = [
-  { status: "PENDING_ACCEPTANCE", label: "Pending outlet acceptance" },
+  { status: "PLACED", label: "Order placed" },
   { status: "ACCEPTED", label: "Order accepted" },
   { status: "PREPARING", label: "Preparing your food" },
   { status: "READY", label: "Order ready" },
-  { status: "OUT_FOR_DELIVERY", label: "Out for delivery" },
-  { status: "DELIVERED", label: "Delivered" },
+  {
+    status: "AWAITING_DELIVERY_PARTNER",
+    label: "Waiting for delivery partner",
+  },
+  { status: "HANDED_OFF", label: "Handed off" },
 ];
 
-export default function OrderStatusTimeline({
-  status,
-}: OrderStatusTimelineProps) {
+export default function OrderStatusTimeline({ status }: Props) {
   if (status === "CANCELLED") {
     return (
-      <p className="rounded-xl bg-red-50 p-4 font-medium text-red-700">
+      <div className="rounded-xl bg-red-50 p-4 text-sm font-medium text-red-700">
         This order has been cancelled.
-      </p>
+      </div>
     );
   }
 
   const currentIndex = steps.findIndex((step) => step.status === status);
 
   return (
-    <ol className="space-y-5">
+    <ol className="space-y-4">
       {steps.map((step, index) => {
-        const isComplete = index <= currentIndex;
+        const completed = currentIndex >= index;
+        const current = currentIndex === index;
 
         return (
           <li key={step.status} className="flex items-start gap-3">
             <span
-              className={`mt-1 flex h-5 w-5 items-center justify-center rounded-full text-xs ${
-                isComplete
+              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs ${
+                completed
                   ? "bg-orange-600 text-white"
-                  : "border border-gray-300 bg-white text-gray-400"
+                  : "border border-gray-300 text-gray-400"
               }`}
             >
-              {isComplete ? "✓" : ""}
+              {completed ? "✓" : ""}
             </span>
 
             <span
               className={
-                isComplete
-                  ? "font-medium text-gray-900"
-                  : "text-gray-400"
+                current
+                  ? "font-semibold text-orange-700"
+                  : completed
+                    ? "text-gray-800"
+                    : "text-gray-400"
               }
             >
               {step.label}

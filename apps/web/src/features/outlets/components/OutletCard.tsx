@@ -1,68 +1,109 @@
+
+import { useState } from "react";
+import { Clock3, Star, ArrowRight } from "lucide-react";
 import type { Outlet } from "../types/outlet";
-import { Clock3, Star } from "lucide-react";
 
 interface OutletCardProps {
   outlet: Outlet;
   onSelect: (outlet: Outlet) => void;
 }
 
-export default function OutletCard({
-  outlet,
-  onSelect,
-}: OutletCardProps) {
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(outlet)}
-      disabled={!outlet.isAvailable}
-      className="group w-full overflow-hidden rounded-2xl border border-stone-200 bg-white text-left transition hover:-translate-y-1 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      <div className="relative h-48 overflow-hidden bg-stone-100">
-        <img
-          src={outlet.image}
-          alt={outlet.name}
-          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-        />
+export default function OutletCard({ outlet, onSelect }: OutletCardProps) {
+  const [imageFailed, setImageFailed] = useState(false);
 
-        {!outlet.isAvailable && (
-          <span className="absolute left-3 top-3 rounded-full bg-stone-800 px-3 py-1 text-xs font-medium text-white">
-            Currently unavailable
+  const isOutletAvailable = outlet.isAvailable ?? outlet.isActive;
+
+  function handleViewMenu() {
+    if (!isOutletAvailable) return;
+
+    onSelect(outlet);
+  }
+
+  return (
+    <div className="w-full overflow-hidden rounded-2xl border border-stone-200 bg-white transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+      <div className="relative h-52 overflow-hidden bg-orange-50">
+        {outlet.image && !imageFailed ? (
+          <img
+            src={outlet.image}
+            alt={outlet.name}
+            onError={() => setImageFailed(true)}
+            className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-stone-100">
+            <span className="text-6xl">🍽️</span>
+          </div>
+        )}
+
+        <div className="absolute left-3 top-3">
+          <span
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold text-white ${
+              isOutletAvailable ? "bg-emerald-600" : "bg-stone-700"
+            }`}
+          >
+            {isOutletAvailable ? "Available for delivery" : "Currently closed"}
           </span>
+        </div>
+
+        {outlet.category && (
+          <div className="absolute bottom-3 left-3">
+            <span className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-stone-800 backdrop-blur">
+              {outlet.category}
+            </span>
+          </div>
         )}
       </div>
 
-      <div className="space-y-3 p-4">
+      <div className="p-4">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-semibold text-stone-900">
+          <div className="min-w-0">
+            <h3 className="truncate text-lg font-bold text-stone-900">
               {outlet.name}
             </h3>
-            <p className="mt-1 text-sm text-stone-500">
-              {outlet.category}
-            </p>
+
+            {outlet.description && (
+              <p className="mt-1 line-clamp-2 text-sm leading-5 text-stone-500">
+                {outlet.description}
+              </p>
+            )}
           </div>
 
-          <span className="flex shrink-0 items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 text-sm font-medium text-emerald-700">
+          <span className="flex shrink-0 items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 text-sm font-semibold text-emerald-700">
             <Star size={14} fill="currentColor" />
             {outlet.rating}
           </span>
         </div>
 
-        <p className="line-clamp-2 min-h-10 text-sm leading-5 text-stone-600">
-          {outlet.description}
-        </p>
-
-        <div className="flex items-center justify-between border-t border-stone-100 pt-3 text-sm text-stone-500">
-          <span className="flex items-center gap-1.5">
-            <Clock3 size={15} />
-            {outlet.deliveryTime}
+        <div className="mt-4 flex items-center justify-between border-t border-stone-100 pt-3">
+          <span className="flex items-center gap-2 text-sm text-stone-500">
+            <Clock3 size={16} />
+            {outlet.deliveryTime || "Delivery time varies"}
           </span>
 
-          <span>
-            ₹{outlet.priceForOne} <span className="text-xs">for one</span>
+          <span className="text-sm font-medium text-stone-700">
+            ₹{outlet.priceForOne || "—"}
+            <span className="ml-1 text-xs font-normal text-stone-400">
+              for one
+            </span>
           </span>
         </div>
+
+        <div className="mt-4 flex flex-col gap-3 border-t border-[#f0f0ed] pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-emerald-700">
+            ✓ Available for your delivery location
+          </p>
+
+          <button
+            type="button"
+            onClick={handleViewMenu}
+            disabled={!isOutletAvailable}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-stone-400"
+          >
+            View menu
+            <ArrowRight size={16} />
+          </button>
+        </div>
       </div>
-    </button>
+    </div>
   );
 }

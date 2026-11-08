@@ -1,63 +1,233 @@
-import { useState } from "react";
+
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-
+import { useAuth } from "@clerk/react";
+import { useApi } from "../lib/api";
 import { useCart } from "../features/cart/context/CartContext";
 import { placeOrder } from "../features/checkout/services/checkoutService";
 import type { PaymentMethod } from "../features/checkout/types/checkout";
 
+interface SavedAddress {
+  id: string;
+  label?: string | null;
+  recipientName: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2?: string | null;
+  landmark?: string | null;
+  area: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  isDefault: boolean;
+}
+
+interface AddressesResponse {
+  success: boolean;
+  addresses?: SavedAddress[];
+  message?: string;
+}
+
 export function useCheckout() {
   const navigate = useNavigate();
-  const { cart, subtotal, clearCart } = useCart();
 
-  const [customerName, setCustomerName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [landmark, setLandmark] = useState("");
-  const [paymentMethod, setPaymentMethod] =
-    useState<PaymentMethod>("upi");
+  const {
+    cart,
+    subtotal,
+    clearCart,
+    appliedCoupon,
+    couponLoading,
+    couponError,
+    applyCoupon,
+    removeCoupon,
+  } = useCart();
+
+  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { apiFetch } = useApi();
+
+  const [addresses, setAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState("");
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState(true);
+
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("UPI");
+
+  // Loyalty redemption is optional. The backend validates the balance
+  // and calculates the final redeemed amount when the order is placed.
+  const [redeemPoints, setRedeemPoints] = useState(0);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    if (!isSignedIn) {
+      setAddresses([]);
+      setSelectedAddressId("");
+      setError("Please sign in to continue checkout.");
+      setIsLoadingAddresses(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadAddresses() {
+      setIsLoadingAddresses(true);
+      setError("");
+
+      try {
+        const response = await apiFetch("/api/addresses");
+        const result = (await response.json()) as AddressesResponse;
+
+        if (!response.ok || !result.success) {
+          throw new Error(
+            result.message || "Unable to load saved addresses.",
+          );
+        }
+
+        const loadedAddresses = result.addresses ?? [];
+
+        if (cancelled) return;
+
+        setAddresses(loadedAddresses);
+
+        setSelectedAddressId((currentId) => {
+          const currentAddressExists = loadedAddresses.some(
+            (address) => address.id === currentId,
+          );
+
+          if (currentAddressExists) {
+            return currentId;
+          }
+
+          const defaultAddress = loadedAddresses.find(
+            (address) => address.isDefault,
+          );
+
+          return defaultAddress?.id ?? loadedAddresses[0]?.id ?? "";
+        });
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Unable to load saved addresses.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingAddresses(false);
+        }
+      }
+    }
+
+    void loadAddresses();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiFetch, isLoaded, isSignedIn]);
+
+  const selectedAddress =
+    addresses.find((address) => address.id === selectedAddressId) ?? null;
+
+  // Coupon discount is provided by the backend.
+  const couponDiscount = Math.min(
+    Math.max(0, appliedCoupon?.discountAmount ?? 0),
+    subtotal,
+  );
+
+  const discountedSubtotal = Number(
+    Math.max(0, subtotal - couponDiscount).toFixed(2),
+  );
+
+  // Preserve the existing delivery rule, applied to the discounted subtotal.
   const deliveryFee =
-    subtotal === 0 || subtotal >= 499 ? 0 : 40;
+    discountedSubtotal === 0 || discountedSubtotal >= 499 ? 0 : 40;
 
-  const taxes = Number((subtotal * 0.05).toFixed(2));
-  const total = Number((subtotal + deliveryFee + taxes).toFixed(2));
+  // Tax is calculated on the discounted subtotal.
+  const taxes = Number((discountedSubtotal * 0.05).toFixed(2));
 
-  const handlePlaceOrder = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const totalBeforeLoyalty = Number(
+    (discountedSubtotal + deliveryFee + taxes).toFixed(2),
+  );
+
+  // Backend rule: 1 loyalty point = ₹1.
+  // Redeem whole points only, and never discount more than the order total.
+  const effectiveRedeemPoints = Math.min(
+    Math.max(0, Math.floor(redeemPoints)),
+    Math.floor(totalBeforeLoyalty),
+  );
+
+  const loyaltyDiscount = effectiveRedeemPoints;
+
+  const total = Number(
+    Math.max(0, totalBeforeLoyalty - loyaltyDiscount).toFixed(2),
+  );
+
+  const handleApplyCoupon = async (code: string) => {
     setError("");
+
+    try {
+      await applyCoupon(code);
+    } catch (err) {
+      // CartContext exposes couponError for the coupon input UI.
+      // Keep checkout-level errors reserved for checkout actions.
+      console.error("Coupon application failed:", err);
+    }
+  };
+
+  const handleRemoveCoupon = async () => {
+    setError("");
+
+    try {
+      await removeCoupon();
+    } catch (err) {
+      console.error("Coupon removal failed:", err);
+    }
+  };
+
+  const handlePlaceOrder = async (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+    setError("");
+
+    if (!isLoaded || !isSignedIn) {
+      setError("Please sign in to continue checkout.");
+      return;
+    }
 
     if (!cart || cart.items.length === 0) {
       setError("Your cart is empty.");
       return;
     }
 
-    if (!customerName.trim() || !phone.trim() || !address.trim()) {
-      setError("Please fill in your name, phone number, and address.");
+    if (isLoadingAddresses) {
+      setError("Please wait while your saved addresses load.");
       return;
     }
 
-    if (!/^[6-9]\d{9}$/.test(phone.trim())) {
-      setError("Please enter a valid 10-digit Indian phone number.");
+    if (!selectedAddressId || !selectedAddress) {
+      setError("Please select a saved address.");
       return;
     }
+
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
 
     try {
-      const order = await placeOrder({
-        customerName: customerName.trim(),
-        phone: phone.trim(),
-        address: address.trim(),
-        landmark: landmark.trim(),
-        paymentMethod,
-        cart,
-      });
+      const order = await placeOrder(
+        {
+          addressId: selectedAddressId,
+          paymentMethod,
+          redeemPoints: effectiveRedeemPoints,
+        },
+        getToken,
+      );
 
-      clearCart();
+      await clearCart();
 
       navigate("/order-confirmation", {
         state: { order },
@@ -66,7 +236,7 @@ export function useCheckout() {
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to place your order. Please try again."
+          : "Unable to place your order. Please try again.",
       );
     } finally {
       setIsSubmitting(false);
@@ -76,18 +246,30 @@ export function useCheckout() {
   return {
     cart,
     subtotal,
+    couponDiscount,
+    discountedSubtotal,
+    appliedCoupon,
+    couponLoading,
+    couponError,
+    handleApplyCoupon,
+    handleRemoveCoupon,
+
     deliveryFee,
     taxes,
+
+    totalBeforeLoyalty,
+    loyaltyDiscount,
+    redeemPoints,
+    setRedeemPoints,
+    effectiveRedeemPoints,
     total,
 
-    customerName,
-    setCustomerName,
-    phone,
-    setPhone,
-    address,
-    setAddress,
-    landmark,
-    setLandmark,
+    addresses,
+    selectedAddress,
+    selectedAddressId,
+    setSelectedAddressId,
+    isLoadingAddresses,
+
     paymentMethod,
     setPaymentMethod,
 

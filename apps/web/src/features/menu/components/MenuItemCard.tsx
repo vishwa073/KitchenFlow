@@ -1,14 +1,72 @@
-import type { MenuItem } from "../types/menu";
+import { useRef, useState } from "react";
+import { useAuth, useClerk } from "@clerk/react";
+import type { MenuItem, MenuVariant } from "../types/menu";
 
 interface MenuItemCardProps {
   item: MenuItem;
-  onAddToCart: (item: MenuItem) => void;
+  onAddToCart: (item: MenuItem, variant: MenuVariant) => void | Promise<void>;
 }
 
-export default function MenuItemCard({
-  item,
-  onAddToCart,
-}: MenuItemCardProps) {
+export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
+  const { isSignedIn, isLoaded } = useAuth();
+  const { redirectToSignIn } = useClerk();
+
+  const [selectedVariantId, setSelectedVariantId] = useState(
+    item.variants[0]?.id ?? "",
+  );
+  const [isAdding, setIsAdding] = useState(false);
+
+  const addLock = useRef(false);
+
+  const selectedVariant =
+    item.variants.find((variant) => variant.id === selectedVariantId) ??
+    item.variants[0];
+
+  const handleAddToCart = async () => {
+    console.log("Add to Cart clicked", {
+      isLoaded,
+      isSignedIn,
+      itemAvailable: item.isAvailable,
+      selectedVariant,
+      isAdding,
+    });
+
+    if (!isLoaded) {
+      console.log("Clerk is not loaded yet");
+      return;
+    }
+
+    if (!selectedVariant || !item.isAvailable || addLock.current) {
+      console.log("Add to Cart blocked by item or lock state");
+      return;
+    }
+
+    // Guest users must sign in before adding items to the cart.
+    if (!isSignedIn) {
+      console.log("Guest detected. Triggering Clerk sign-in.");
+
+      redirectToSignIn({
+        signInForceRedirectUrl: "/onboarding",
+        signUpForceRedirectUrl: "/onboarding",
+      });
+
+      return;
+    }
+
+    // Keep the existing add-to-cart behavior for signed-in customers.
+    addLock.current = true;
+    setIsAdding(true);
+
+    try {
+      await onAddToCart(item, selectedVariant);
+    } catch (error) {
+      console.error("Failed to add item to cart:", error);
+    } finally {
+      addLock.current = false;
+      setIsAdding(false);
+    }
+  };
+
   return (
     <article className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md">
       <div className="relative">
@@ -51,16 +109,14 @@ export default function MenuItemCard({
                 />
               </span>
 
-              <h3 className="font-semibold text-gray-900">
-                {item.name}
-              </h3>
+              <h3 className="font-semibold text-gray-900">{item.name}</h3>
             </div>
 
             <p className="text-sm text-gray-500">{item.category}</p>
           </div>
 
           <p className="shrink-0 whitespace-nowrap font-bold text-gray-900">
-            ₹{item.price}
+            ₹{selectedVariant?.price ?? item.price}
           </p>
         </div>
 
@@ -68,13 +124,42 @@ export default function MenuItemCard({
           {item.description}
         </p>
 
+        {item.variants.length > 1 && (
+          <label className="mb-3 block">
+            <span className="mb-1 block text-sm font-medium text-gray-700">
+              Choose variant
+            </span>
+
+            <select
+              value={selectedVariantId}
+              onChange={(event) => setSelectedVariantId(event.target.value)}
+              disabled={isAdding}
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-gray-100"
+            >
+              {item.variants.map((variant) => (
+                <option key={variant.id} value={variant.id}>
+                  {variant.name} — ₹{variant.price}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
         <button
           type="button"
-          disabled={!item.isAvailable}
-          onClick={() => onAddToCart(item)}
+          disabled={
+            !isLoaded || !item.isAvailable || !selectedVariant || isAdding
+          }
+          onClick={handleAddToCart}
           className="w-full rounded-lg bg-orange-500 py-2.5 font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-gray-300"
         >
-          {item.isAvailable ? "Add to cart" : "Unavailable"}
+          {!item.isAvailable
+            ? "Unavailable"
+            : isAdding
+              ? "Adding…"
+              : !isLoaded
+                ? "Loading…"
+                : "Add to cart"}
         </button>
       </div>
     </article>

@@ -1,27 +1,37 @@
-interface DeliveryAddressFormProps {
-  customerName: string;
-  setCustomerName: (value: string) => void;
 
+interface SavedAddress {
+  id: string;
+  label?: string | null;
+  recipientName: string;
   phone: string;
-  setPhone: (value: string) => void;
+  addressLine1: string;
+  addressLine2?: string | null;
+  landmark?: string | null;
+  area: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  isDefault: boolean;
+}
 
-  address: string;
-  setAddress: (value: string) => void;
-
-  landmark: string;
-  setLandmark: (value: string) => void;
+interface DeliveryAddressFormProps {
+  addresses: SavedAddress[];
+  selectedAddressId: string;
+  setSelectedAddressId: (value: string) => void;
+  isLoadingAddresses: boolean;
 }
 
 export default function DeliveryAddressForm({
-  customerName,
-  setCustomerName,
-  phone,
-  setPhone,
-  address,
-  setAddress,
-  landmark,
-  setLandmark,
+  addresses,
+  selectedAddressId,
+  setSelectedAddressId,
+  isLoadingAddresses,
 }: DeliveryAddressFormProps) {
+  const selectedAddress = addresses.find(
+    (address) => address.id === selectedAddressId,
+  );
+
   return (
     <section className="rounded-2xl border bg-white p-6">
       <div className="mb-6">
@@ -29,65 +39,85 @@ export default function DeliveryAddressForm({
           Delivery address
         </h2>
         <p className="mt-1 text-sm text-gray-500">
-          Where should we deliver your order?
+          Select where your order should be delivered.
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Full name
-          </label>
-          <input
-            value={customerName}
-            onChange={(event) => setCustomerName(event.target.value)}
-            placeholder="Enter your full name"
-            autoComplete="name"
-            className="w-full rounded-lg border px-3 py-2.5 outline-none focus:border-orange-500"
-          />
+      {isLoadingAddresses ? (
+        <p className="text-sm text-gray-500">
+          Loading your saved addresses...
+        </p>
+      ) : addresses.length === 0 ? (
+        <div className="rounded-xl border border-dashed p-4">
+          <p className="text-sm font-medium text-gray-800">
+            No saved addresses found.
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
+            Please add an address from your account before placing an order.
+          </p>
         </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {addresses.map((address) => {
+              const isSelected = address.id === selectedAddressId;
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Phone number
-          </label>
-          <input
-            value={phone}
-            onChange={(event) => setPhone(event.target.value)}
-            placeholder="10-digit mobile number"
-            inputMode="numeric"
-            maxLength={10}
-            autoComplete="tel"
-            className="w-full rounded-lg border px-3 py-2.5 outline-none focus:border-orange-500"
-          />
-        </div>
+              return (
+                <label
+                  key={address.id}
+                  className={`flex cursor-pointer gap-3 rounded-xl border p-4 transition ${
+                    isSelected
+                      ? "border-orange-500 bg-orange-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="deliveryAddress"
+                    value={address.id}
+                    checked={isSelected}
+                    onChange={() => setSelectedAddressId(address.id)}
+                    className="mt-1 accent-orange-600"
+                  />
 
-        <div className="sm:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Complete address
-          </label>
-          <textarea
-            value={address}
-            onChange={(event) => setAddress(event.target.value)}
-            placeholder="House/flat number, street, area"
-            rows={3}
-            autoComplete="street-address"
-            className="w-full resize-none rounded-lg border px-3 py-2.5 outline-none focus:border-orange-500"
-          />
-        </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-gray-900">
+                        {address.label || "Saved address"}
+                      </span>
 
-        <div className="sm:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Landmark (optional)
-          </label>
-          <input
-            value={landmark}
-            onChange={(event) => setLandmark(event.target.value)}
-            placeholder="Nearby landmark"
-            className="w-full rounded-lg border px-3 py-2.5 outline-none focus:border-orange-500"
-          />
-        </div>
-      </div>
+                      {address.isDefault && (
+                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                          Default
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="mt-1 text-sm text-gray-800">
+                      {address.recipientName} · {address.phone}
+                    </p>
+
+                    <p className="mt-1 text-sm leading-5 text-gray-600">
+                      {address.addressLine1}
+                      {address.addressLine2
+                        ? `, ${address.addressLine2}`
+                        : ""}
+                      {address.landmark ? `, ${address.landmark}` : ""}
+                      {`, ${address.area}, ${address.city}, ${address.state} - ${address.postalCode}, ${address.country}`}
+                    </p>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+
+          {selectedAddress && (
+            <p className="mt-4 text-xs text-gray-500">
+              Delivering to {selectedAddress.recipientName}.
+            </p>
+          )}
+        </>
+      )}
     </section>
   );
 }
