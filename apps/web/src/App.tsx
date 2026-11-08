@@ -73,7 +73,7 @@ export default function App() {
               </RequireAuth>
             }
           >
-           <Route index element={<div />} />
+           <Route index element={<CustomerHome />} />
             <Route path="orders" element={<CustomerOrders />} />
             <Route path="profile" element={<CustomerProfile />} />
 
