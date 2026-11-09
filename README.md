@@ -55,21 +55,51 @@ KitchenFlow is a full-stack food ordering and kitchen operations platform. It su
 
 ```text
 KitchenFlow/
+├── package.json                    # Root npm workspace configuration
+├── package-lock.json               # Locked dependency versions
 ├── apps/
-│   ├── web/                  # React/Vite customer, kitchen, and management UI
+│   ├── web/                        # Frontend: React/Vite web application
+│   │   ├── package.json            # Frontend scripts and dependencies
+│   │   ├── index.html              # Vite HTML entry point
+│   │   ├── public/                 # Static public assets and icons
 │   │   └── src/
-│   │       ├── features/     # Feature pages, services, types, and components
-│   │       ├── hooks/        # Shared React hooks
-│   │       └── lib/          # API and Socket.IO clients/providers
-│   └── api/                  # Express API and Socket.IO server
-│       ├── prisma/           # Schema, migrations, and seed data
+│   │       ├── main.tsx            # React and Clerk application bootstrap
+│   │       ├── App.tsx             # Frontend routes and providers
+│   │       ├── assets/             # Images and bundled assets
+│   │       ├── components/         # Shared UI components
+│   │       ├── features/           # Customer, checkout, orders, kitchen,
+│   │       │                        # admin, manager, menu, and outlet features
+│   │       ├── hooks/              # Shared React hooks
+│   │       ├── lib/                # API, Socket.IO, and shared integrations
+│   │       ├── App.css             # Application-level styles
+│   │       └── index.css           # Global styles and Tailwind imports
+│   │
+│   └── api/                        # Backend: Express/Socket.IO API server
+│       ├── package.json            # Backend scripts and dependencies
+│       ├── prisma/
+│       │   ├── schema.prisma       # PostgreSQL data model
+│       │   ├── migrations/         # Versioned database migrations
+│       │   ├── seed.ts             # Database seed entry point
+│       │   └── seed-data/          # Demo outlets and menu data
 │       └── src/
-│           ├── middleware/   # Authentication, authorization, and errors
-│           ├── modules/      # Domain routes and services
-│           └── routes/       # Cross-domain API routes
-├── package.json              # Workspace configuration
-└── package-lock.json
+│           ├── index.ts            # HTTP and Socket.IO server startup
+│           ├── app.ts              # Express app, middleware, and API routes
+│           ├── config/             # Environment configuration and validation
+│           ├── lib/                # Prisma client and shared integrations
+│           ├── middleware/         # Authentication, authorization, and errors
+│           ├── modules/            # Domain routes and services:
+│           │                        # auth, address, cart, menu, orders,
+│           │                        # outlets, party, kitchen, and management
+│           ├── routes/              # Cross-domain routes such as serviceability
+│           └── utils/               # Shared error and utility helpers
+│
+└── postman/                        # API request and workspace resources
 ```
+
+The project is intentionally split into two independently runnable applications:
+
+- **Frontend (`apps/web`)** provides the customer, kitchen, manager, and admin user interfaces. It calls the API through the configured `VITE_API_URL` and receives authenticated real-time updates through Socket.IO.
+- **Backend (`apps/api`)** provides REST endpoints, authentication and authorization middleware, business logic, database access through Prisma, and the Socket.IO server. It uses PostgreSQL for users, outlets, menus, carts, orders, party requests, loyalty, and kitchen data.
 
 ## Prerequisites
 
