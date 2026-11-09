@@ -161,7 +161,29 @@ export default function OrderConfirmationPage() {
       .join(", "),
   );
 
-  const estimatedTime = getText(order?.estimatedTime) ?? "30–45 minutes";
+  const latestPrepEstimate = order?.prepTimeEstimates?.[0];
+
+  const estimatedPrepMinutes = getAmount(latestPrepEstimate?.estimatedMinutes);
+
+  const promisedAt = getText(order?.promisedAt);
+
+  const promisedTimeLabel = promisedAt
+    ? new Date(promisedAt).toLocaleTimeString("en-IN", {
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : undefined;
+
+  const prepTimeSource = getText(latestPrepEstimate?.source);
+
+  const prepTimeReason = getText(latestPrepEstimate?.reason);
+
+  const prepTimeMessage =
+    prepTimeSource === "AI"
+      ? "AI-based preparation-time estimate."
+      : prepTimeSource === "FALLBACK"
+        ? "Estimated using the kitchen's fallback calculation."
+        : "Your preparation time will be available shortly.";
 
   if (loading && !order) {
     return (
@@ -321,12 +343,21 @@ export default function OrderConfirmationPage() {
           <Clock size={20} className="mt-0.5 shrink-0" />
 
           <div>
-            <p className="font-semibold">Estimated delivery: {estimatedTime}</p>
-
-            <p className="mt-1 text-sm">
-              This is a default estimate. We’ll provide a more accurate time
-              after AI-based preparation-time estimation is integrated.
+            <p className="font-semibold">
+              {estimatedPrepMinutes !== undefined
+                ? `Estimated preparation: ~${estimatedPrepMinutes} minutes`
+                : "Preparation time is being calculated"}
             </p>
+
+            {promisedTimeLabel && (
+              <p className="mt-1 text-sm">
+                Estimated ready around {promisedTimeLabel}
+              </p>
+            )}
+
+            <p className="mt-1 text-sm">{prepTimeMessage}</p>
+
+            {prepTimeReason && <p className="mt-1 text-sm">{prepTimeReason}</p>}
           </div>
         </div>
 
@@ -337,7 +368,8 @@ export default function OrderConfirmationPage() {
             <p className="font-semibold">WhatsApp order updates</p>
 
             <p className="mt-1 text-sm">
-              WhatsApp order confirmation and updates are at you registered number.
+              WhatsApp order confirmation and updates are at you registered
+              number.
             </p>
           </div>
         </div>

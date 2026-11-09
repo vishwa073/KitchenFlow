@@ -1,4 +1,3 @@
-
 import { useAuth } from "@clerk/react";
 import {
   createContext,
@@ -9,9 +8,8 @@ import {
   type ReactNode,
 } from "react";
 
-import type { Cart, CartItem } from "../types/cart";
-import type { MenuItem, MenuVariant } from "../../menu/types/menu";
-
+import type { Cart, CartAddon, CartItem } from "../types/cart";
+import type { MenuAddon, MenuItem, MenuVariant } from "../../menu/types/menu";
 import { useApi } from "../../../lib/api";
 import { getCartItemCount, getCartSubtotal } from "../utils/cartUtils";
 
@@ -36,7 +34,11 @@ interface CartContextType {
   applyCoupon: (code: string) => Promise<void>;
   removeCoupon: () => Promise<void>;
 
-  addItem: (item: MenuItem, variant: MenuVariant) => Promise<void>;
+  addItem: (
+    item: MenuItem,
+    variant: MenuVariant,
+    addons: MenuAddon[],
+  ) => Promise<void>;
   updateQuantity: (cartItemId: string, quantity: number) => Promise<void>;
   removeItem: (cartItemId: string) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -48,6 +50,20 @@ type ApiCartItem = {
   id: string;
   quantity: number;
   unitPrice: number | string;
+
+  addons: {
+    id: string;
+    quantity: number;
+    unitPrice: number | string;
+    addonPrice: {
+      id: string;
+      addon: {
+        id: string;
+        name: string;
+      };
+    };
+  }[];
+
   outletMenuItem: {
     id: string;
     outletId: string;
@@ -61,6 +77,7 @@ type ApiCartItem = {
       isActive: boolean;
     };
   };
+
   variantPrice: {
     id: string;
     price: number | string;
@@ -107,6 +124,10 @@ function mapApiCartItem(apiItem: ApiCartItem): CartItem {
     isAvailable: true,
     isVegetarian: dbMenuItem.foodType.toLowerCase().includes("vegetarian"),
     isPopular: false,
+
+    // Cart response doesn't currently include menu choices.
+    variants: [],
+    addons: [],
   };
 
   const selectedVariant: MenuVariant = {
@@ -115,11 +136,17 @@ function mapApiCartItem(apiItem: ApiCartItem): CartItem {
     name: dbVariant.name,
     price: toNumber(apiItem.variantPrice.price),
   };
-
+  const selectedAddons: CartAddon[] = apiItem.addons.map((addon) => ({
+    id: addon.addonPrice.id,
+    name: addon.addonPrice.addon.name,
+    price: toNumber(addon.unitPrice),
+    quantity: addon.quantity,
+  }));
   return {
     id: apiItem.id,
     menuItem,
     selectedVariant,
+    selectedAddons,
     quantity: apiItem.quantity,
   };
 }
@@ -136,8 +163,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<Cart>(emptyCart);
   const [loading, setLoading] = useState(true);
 
-  const [appliedCoupon, setAppliedCoupon] =
-    useState<AppliedCoupon | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(
+    null,
+  );
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState("");
 
@@ -303,7 +331,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const addItem = async (item: MenuItem, variant: MenuVariant) => {
+  const addItem = async (
+    item: MenuItem,
+    variant: MenuVariant,
+    addons: MenuAddon[] = [],
+  ) => {
     if (cart.outletId && cart.outletId !== item.outletId) {
       throw new Error("Your cart already contains items from another outlet.");
     }
@@ -318,7 +350,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         outletMenuItemId: item.id,
         outletVariantPriceId: variant.id,
         quantity: 1,
-        addons: [],
+        addons: addons.map((addon) => ({
+          outletAddonPriceId: addon.id,
+          quantity: 1,
+        })),
       }),
     });
 

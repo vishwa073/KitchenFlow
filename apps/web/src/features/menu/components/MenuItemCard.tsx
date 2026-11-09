@@ -1,10 +1,15 @@
+
 import { useRef, useState } from "react";
 import { useAuth, useClerk } from "@clerk/react";
-import type { MenuItem, MenuVariant } from "../types/menu";
+import type { MenuAddon, MenuItem, MenuVariant } from "../types/menu";
 
 interface MenuItemCardProps {
   item: MenuItem;
-  onAddToCart: (item: MenuItem, variant: MenuVariant) => void | Promise<void>;
+  onAddToCart: (
+    item: MenuItem,
+    variant: MenuVariant,
+    addons: MenuAddon[],
+  ) => void | Promise<void>;
 }
 
 export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
@@ -14,6 +19,7 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
   const [selectedVariantId, setSelectedVariantId] = useState(
     item.variants[0]?.id ?? "",
   );
+  const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([]);
   const [isAdding, setIsAdding] = useState(false);
 
   const addLock = useRef(false);
@@ -22,12 +28,35 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
     item.variants.find((variant) => variant.id === selectedVariantId) ??
     item.variants[0];
 
+  const selectedAddons = item.addons.filter((addon) =>
+    selectedAddonIds.includes(addon.id),
+  );
+
+  const missingRequiredAddons = item.addons.some(
+    (addon) => addon.isRequired && !selectedAddonIds.includes(addon.id),
+  );
+
+  const handleAddonToggle = (addon: MenuAddon) => {
+    if (!addon.isAvailable || isAdding) return;
+
+    setSelectedAddonIds((current) => {
+      const isSelected = current.includes(addon.id);
+
+      if (isSelected) {
+        return current.filter((id) => id !== addon.id);
+      }
+
+      return [...current, addon.id];
+    });
+  };
+
   const handleAddToCart = async () => {
     console.log("Add to Cart clicked", {
       isLoaded,
       isSignedIn,
       itemAvailable: item.isAvailable,
       selectedVariant,
+      selectedAddons,
       isAdding,
     });
 
@@ -36,8 +65,13 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
       return;
     }
 
-    if (!selectedVariant || !item.isAvailable || addLock.current) {
-      console.log("Add to Cart blocked by item or lock state");
+    if (
+      !selectedVariant ||
+      !item.isAvailable ||
+      missingRequiredAddons ||
+      addLock.current
+    ) {
+      console.log("Add to Cart blocked by item, required addon, or lock state");
       return;
     }
 
@@ -58,7 +92,7 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
     setIsAdding(true);
 
     try {
-      await onAddToCart(item, selectedVariant);
+      await onAddToCart(item, selectedVariant, selectedAddons);
     } catch (error) {
       console.error("Failed to add item to cart:", error);
     } finally {
@@ -145,10 +179,59 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
           </label>
         )}
 
+        {item.addons.length > 0 && (
+          <div className="mb-4">
+            <p className="mb-2 text-sm font-medium text-gray-700">
+              Add-ons
+            </p>
+
+            <div className="space-y-2">
+              {item.addons.map((addon) => (
+                <label
+                  key={addon.id}
+                  className={`flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2 ${
+                    addon.isAvailable
+                      ? "cursor-pointer"
+                      : "cursor-not-allowed opacity-50"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedAddonIds.includes(addon.id)}
+                      onChange={() => handleAddonToggle(addon)}
+                      disabled={isAdding || !addon.isAvailable}
+                      className="accent-orange-500"
+                    />
+
+                    <span className="text-sm text-gray-700">
+                      {addon.name}
+
+                      {addon.isRequired && (
+                        <span className="ml-1 text-xs text-red-500">
+                          Required
+                        </span>
+                      )}
+                    </span>
+                  </span>
+
+                  <span className="whitespace-nowrap text-sm font-medium text-gray-800">
+                    +₹{addon.price}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
         <button
           type="button"
           disabled={
-            !isLoaded || !item.isAvailable || !selectedVariant || isAdding
+            !isLoaded ||
+            !item.isAvailable ||
+            !selectedVariant ||
+            isAdding ||
+            missingRequiredAddons
           }
           onClick={handleAddToCart}
           className="w-full rounded-lg bg-orange-500 py-2.5 font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-gray-300"
@@ -159,7 +242,9 @@ export default function MenuItemCard({ item, onAddToCart }: MenuItemCardProps) {
               ? "Adding…"
               : !isLoaded
                 ? "Loading…"
-                : "Add to cart"}
+                : missingRequiredAddons
+                  ? "Select required add-ons"
+                  : "Add to cart"}
         </button>
       </div>
     </article>

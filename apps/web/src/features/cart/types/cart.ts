@@ -3,15 +3,23 @@ import type {
   MenuVariant,
 } from "../../menu/types/menu";
 
+export interface CartAddon {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
 export interface CartItem {
-  id: string; // Database CartItem.id
+  id: string;
   menuItem: MenuItem;
   selectedVariant: MenuVariant;
+  selectedAddons: CartAddon[];
   quantity: number;
 }
 
 export interface Cart {
-  id?: string; // Database Cart.id
+  id?: string;
   outletId: string;
   items: CartItem[];
 }

@@ -10,7 +10,7 @@ export function useOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-const ORDERS_API_URL = `${import.meta.env.VITE_API_URL}/api`;
+// const ORDERS_API_URL = `${import.meta.env.VITE_API_URL}/api`;
   const loadOrders = useCallback(async () => {
     if (!isLoaded) return;
 

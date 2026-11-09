@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import type { Cart } from "../../cart/types/cart";
 
@@ -12,6 +11,8 @@ interface OrderSummaryProps {
   isSubmitting: boolean;
 
   discount?: number;
+  loyaltyDiscount?: number;
+  loyaltyPointsRedeemed?: number;
   appliedCoupon?: string;
   onApplyCoupon?: (code: string) => void | Promise<void>;
   onRemoveCoupon?: () => void | Promise<void>;
@@ -33,6 +34,8 @@ export default function OrderSummary({
   error,
   isSubmitting,
   discount = 0,
+  loyaltyDiscount = 0,
+  loyaltyPointsRedeemed = 0,
   appliedCoupon,
   onApplyCoupon,
   onRemoveCoupon,
@@ -49,11 +52,17 @@ export default function OrderSummary({
       {/* Items, selected portion and add-ons */}
       <div className="mb-5 space-y-4">
         {cart.items.map((item, index) => {
-          const itemTotal = item.selectedVariant.price * item.quantity;
+          const addonsTotal = item.selectedAddons.reduce(
+            (sum, addon) => sum + Number(addon.price) * addon.quantity,
+            0,
+          );
+
+          const itemTotal =
+            (Number(item.selectedVariant.price) + addonsTotal) * item.quantity;
 
           return (
             <div
-              key={`${item.menuItem.id}-${item.selectedVariant.id}-${index}`}
+              key={`${item.id}-${index}`}
               className="flex justify-between gap-4 text-sm"
             >
               <div className="min-w-0">
@@ -65,18 +74,18 @@ export default function OrderSummary({
                   {item.selectedVariant.name} · Qty: {item.quantity}
                 </p>
 
-                {"addons" in item &&
-                  Array.isArray(item.addons) &&
-                  item.addons.length > 0 && (
-                    <div className="mt-1 text-xs text-gray-500">
-                      {item.addons.map((addon: any, addonIndex: number) => (
-                        <p key={addon.id ?? addonIndex}>
-                          + {addon.name ?? addon.addon?.name ?? "Add-on"}
-                          {addon.quantity > 1 ? ` × ${addon.quantity}` : ""}
-                        </p>
-                      ))}
-                    </div>
-                  )}
+                {item.selectedAddons.length > 0 && (
+                  <div className="mt-1 space-y-1 text-xs text-gray-500">
+                    {item.selectedAddons.map((addon) => (
+                      <p key={addon.id}>
+                        + {addon.name}
+                        {addon.quantity > 1 ? ` × ${addon.quantity}` : ""}
+                        {" · "}
+                        {formatPrice(Number(addon.price) * addon.quantity)}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <p className="shrink-0 font-medium text-gray-800">
@@ -117,10 +126,19 @@ export default function OrderSummary({
 
         <div className="flex justify-between text-gray-600">
           <span>Delivery fee</span>
-          <span>
-            {deliveryFee === 0 ? "FREE" : formatPrice(deliveryFee)}
-          </span>
+          <span>{deliveryFee === 0 ? "FREE" : formatPrice(deliveryFee)}</span>
         </div>
+        {loyaltyDiscount > 0 && (
+          <div className="flex justify-between text-green-700">
+            <span>
+              Loyalty points
+              {loyaltyPointsRedeemed > 0
+                ? ` (${loyaltyPointsRedeemed} points)`
+                : ""}
+            </span>
+            <span>-{formatPrice(loyaltyDiscount)}</span>
+          </div>
+        )}
 
         <div className="flex justify-between text-gray-600">
           <span>Taxes</span>
@@ -188,9 +206,7 @@ function CouponEntry({
 
   return (
     <div className="mb-5 border-t pt-4">
-      <p className="mb-2 text-sm font-medium text-gray-800">
-        Apply coupon
-      </p>
+      <p className="mb-2 text-sm font-medium text-gray-800">Apply coupon</p>
 
       {appliedCoupon ? (
         <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 p-3 text-sm">

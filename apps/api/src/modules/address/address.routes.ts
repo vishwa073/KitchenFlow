@@ -337,51 +337,51 @@ router.get("/", async (req, res) => {
     });
   }
 });
-export async function selectOutletForAddress(
-  clerkUserId: string,
-  addressId: string,
-  outletId: string,
-) {
-  const user = await prisma.user.findUnique({
-    where: { clerkUserId },
-    select: { id: true },
-  });
+// export async function selectOutletForAddress(
+//   clerkUserId: string,
+//   addressId: string,
+//   outletId: string,
+// ) {
+//   const user = await prisma.user.findUnique({
+//     where: { clerkUserId },
+//     select: { id: true },
+//   });
 
-  if (!user) {
-    throw new Error("USER_NOT_FOUND");
-  }
+//   if (!user) {
+//     throw new Error("USER_NOT_FOUND");
+//   }
 
-  const address = await prisma.address.findFirst({
-    where: {
-      id: addressId,
-      userId: user.id,
-    },
-    select: {
-      id: true,
-      latitude: true,
-      longitude: true,
-    },
-  });
+//   const address = await prisma.address.findFirst({
+//     where: {
+//       id: addressId,
+//       userId: user.id,
+//     },
+//     select: {
+//       id: true,
+//       latitude: true,
+//       longitude: true,
+//     },
+//   });
 
-  if (!address) {
-    throw new Error("ADDRESS_NOT_FOUND");
-  }
+//   if (!address) {
+//     throw new Error("ADDRESS_NOT_FOUND");
+//   }
 
-  const outlet = await prisma.outlet.findUnique({
-    where: { id: outletId },
-    select: { id: true },
-  });
+//   const outlet = await prisma.outlet.findUnique({
+//     where: { id: outletId },
+//     select: { id: true },
+//   });
 
-  if (!outlet) {
-    throw new Error("OUTLET_NOT_FOUND");
-  }
+//   if (!outlet) {
+//     throw new Error("OUTLET_NOT_FOUND");
+//   }
 
-  return prisma.address.update({
-    where: { id: address.id },
-    data: {
-      selectedOutletId: outlet.id,
-    },
-  });
-}
+//   return prisma.address.update({
+//     where: { id: address.id },
+//     data: {
+//       selectedOutletId: outlet.id,
+//     },
+//   });
+// }
 
 export default router;

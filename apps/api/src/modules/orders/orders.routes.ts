@@ -4,6 +4,8 @@ import { prisma } from "../../lib/prisma.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { PaymentMethod } from "../../../generated/prisma/client.js";
 import { sendWhatsAppMessage } from "../auth/whatsapp.service.js";
+import { estimatePrepTime } from "./prep-time-estimator.service.js";
+import type { Server } from "socket.io";
 const ordersRouter = Router();
 
 function isNonEmptyString(value: unknown): value is string {
@@ -304,6 +306,11 @@ ordersRouter.post("/", requireAuth, async (req, res, next) => {
 
         let subtotal = 0;
         let addonTotal = 0;
+        const prepTimeItems = cart.items.map((cartItem) => ({
+          name: cartItem.outletMenuItem.menuItem.name,
+          quantity: cartItem.quantity,
+          prepTimeMin: cartItem.outletMenuItem.menuItem.prepTimeMin,
+        }));
 
         // Prepare order items and calculate totals.
         const orderItems = cart.items.map((cartItem) => {
@@ -435,21 +442,22 @@ ordersRouter.post("/", requireAuth, async (req, res, next) => {
         }
 
         // Loyalty redemption is validated and applied below.
-        const taxAmount = 0;
-        const deliveryFee = 0;
-
-        let totalAmount = Math.max(
+        // Prices are GST-inclusive at 5%.
+        // Extract the GST component; do not add GST on top of the customer price.
+        const gstInclusiveAmount = Math.max(
           0,
-          Number(
-            (
-              subtotal +
-              addonTotal -
-              couponDiscount +
-              taxAmount +
-              deliveryFee
-            ).toFixed(2),
-          ),
+          Number((subtotal + addonTotal - couponDiscount).toFixed(2)),
         );
+
+        // 5% GST included in a GST-inclusive amount = amount * 5 / 105.
+        const taxAmount = Number(((gstInclusiveAmount * 5) / 105).toFixed(2));
+
+        // Delivery fee is not specified in the provided requirement.
+        const deliveryFee =
+          gstInclusiveAmount === 0 || gstInclusiveAmount >= 499 ? 0 : 40;
+
+        // Customer total already includes GST.
+        let totalAmount = Number((gstInclusiveAmount + deliveryFee).toFixed(2));
 
         let loyaltyPointsRedeemed = 0;
         let loyaltyDiscount = 0;
@@ -495,6 +503,8 @@ ordersRouter.post("/", requireAuth, async (req, res, next) => {
         const orderNumber = `KF-${Date.now()}-${Math.floor(
           Math.random() * 10000,
         )}`;
+        // Demo loyalty: earn 1 point for every ₹100 paid.
+        const loyaltyPointsEarned = Math.floor(totalAmount / 100);
 
         // 1. Create the parent Order first.
         // OrderItems are intentionally created separately below.
@@ -507,7 +517,7 @@ ordersRouter.post("/", requireAuth, async (req, res, next) => {
             status: "PLACED",
             fulfillmentType: cart.fulfillmentType,
             paymentMethod: validatedPaymentMethod,
-            paymentStatus: "PENDING",
+            paymentStatus: "SUCCEEDED",
 
             customerName: address.recipientName,
             customerEmail: user.email,
@@ -524,12 +534,12 @@ ordersRouter.post("/", requireAuth, async (req, res, next) => {
             couponId,
             couponCode,
             loyaltyPointsRedeemed,
-            loyaltyPointsEarned: 0,
+            loyaltyPointsEarned,
 
             payments: {
               create: {
                 method: paymentMethod as PaymentMethod,
-                status: "PENDING",
+                status: "SUCCEEDED",
                 amount: totalAmount,
                 currency: "INR",
                 provider: "MOCK",
@@ -600,6 +610,32 @@ ordersRouter.post("/", requireAuth, async (req, res, next) => {
             },
           });
         }
+        // Award loyalty points for this mock-paid order.
+        if (loyaltyPointsEarned > 0) {
+          const loyaltyAccount = await tx.loyaltyAccount.upsert({
+            where: { userId: user.id },
+            create: {
+              userId: user.id,
+              points: loyaltyPointsEarned,
+            },
+            update: {
+              points: {
+                increment: loyaltyPointsEarned,
+              },
+            },
+          });
+
+          await tx.loyaltyTransaction.create({
+            data: {
+              accountId: loyaltyAccount.id,
+              userId: user.id,
+              orderId: order.id,
+              type: "EARNED",
+              points: loyaltyPointsEarned,
+              note: `Earned for order ${order.orderNumber}`,
+            },
+          });
+        }
 
         if (!order) {
           throw new Error("Order creation returned null.");
@@ -662,6 +698,7 @@ ordersRouter.post("/", requireAuth, async (req, res, next) => {
 
         return {
           order: createdOrder,
+          prepTimeItems,
         };
       },
       {
@@ -677,6 +714,91 @@ ordersRouter.post("/", requireAuth, async (req, res, next) => {
       });
       return;
     }
+    // Estimate prep time after the order transaction commits.
+    // Groq failure must never cause checkout to fail.
+    let prepEstimate: Awaited<ReturnType<typeof estimatePrepTime>> | null =
+      null;
+
+    try {
+      const outlet = await prisma.outlet.findUnique({
+        where: {
+          id: result.order.outletId,
+        },
+        select: {
+          minimumPrepTimeMin: true,
+        },
+      });
+
+      if (outlet) {
+        const activeOrderCount = await prisma.order.count({
+          where: {
+            outletId: result.order.outletId,
+            status: {
+              in: ["PLACED", "ACCEPTED", "PREPARING"],
+            },
+          },
+        });
+
+        // The newly placed order is included in this count.
+        // Subtract it so the estimator receives the prior kitchen workload.
+        const existingActiveOrders = Math.max(0, activeOrderCount - 1);
+
+        // Temporary default capacity until outlet-specific capacity is configured.
+        const kitchenCapacity = 5;
+
+        prepEstimate = await estimatePrepTime({
+          items: result.prepTimeItems,
+          activeKitchenOrders: existingActiveOrders,
+          kitchenCapacity,
+          minimumPrepTimeMin: outlet.minimumPrepTimeMin,
+        });
+
+        const promisedAt = new Date(
+          Date.now() + prepEstimate.estimatedPrepMinutes * 60 * 1000,
+        );
+
+        await prisma.$transaction([
+          prisma.prepTimeEstimate.create({
+            data: {
+              orderId: result.order.id,
+              estimatedMinutes: prepEstimate.estimatedPrepMinutes,
+              source: prepEstimate.source,
+              reason: prepEstimate.reason,
+              kitchenLoad: existingActiveOrders,
+              activeOrderCount: existingActiveOrders,
+            },
+          }),
+          prisma.order.update({
+            where: {
+              id: result.order.id,
+            },
+            data: {
+              promisedAt,
+            },
+          }),
+        ]);
+
+        // Update the response object used by the Socket.IO and HTTP response.
+        result.order.promisedAt = promisedAt;
+      }
+    } catch (error) {
+      console.error("Failed to save prep-time estimate:", error);
+    }
+    // Notify the kitchen outlet that a new order has been placed.
+    // This runs only after the order transaction has committed.
+    const io = req.app.get("io") as Server | undefined;
+
+    io?.to(`outlet:${result.order.outletId}`).emit("order.created", {
+      orderId: result.order.id,
+      orderNumber: result.order.orderNumber,
+      outletId: result.order.outletId,
+      status: result.order.status,
+      placedAt: result.order.placedAt,
+      promisedAt: result.order.promisedAt,
+      estimatedPrepMinutes: prepEstimate?.estimatedPrepMinutes ?? null,
+      prepTimeReason: prepEstimate?.reason ?? null,
+      prepTimeSource: prepEstimate?.source ?? null,
+    });
     // Send WhatsApp order confirmation.
     // Order creation must remain successful even if WhatsApp sending fails.
     try {

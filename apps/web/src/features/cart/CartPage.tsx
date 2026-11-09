@@ -1,12 +1,5 @@
-
 import { useNavigate, useLocation } from "react-router-dom";
-import {
-  ArrowLeft,
-  Minus,
-  Plus,
-  ShoppingBag,
-  Trash2,
-} from "lucide-react";
+import { ArrowLeft, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 
 import { useCart } from "./context/CartContext";
 
@@ -14,14 +7,8 @@ export default function CartPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const {
-    cart,
-    cartCount,
-    subtotal,
-    loading,
-    updateQuantity,
-    removeItem,
-  } = useCart();
+  const { cart, cartCount, subtotal, loading, updateQuantity, removeItem } =
+    useCart();
 
   const deliveryFee = subtotal === 0 ? 0 : subtotal >= 499 ? 0 : 40;
   const taxes = subtotal * 0.05;
@@ -32,21 +19,21 @@ export default function CartPage() {
       maximumFractionDigits: 2,
     })}`;
 
-const goToCustomerHome = () => {
-  const returnTo = location.state?.returnTo;
+  const goToCustomerHome = () => {
+    const returnTo = location.state?.returnTo;
 
-  if (returnTo) {
-    navigate(returnTo);
-    return;
-  }
+    if (returnTo) {
+      navigate(returnTo);
+      return;
+    }
 
-  if (cart.outletId) {
-    navigate(`/customer/${cart.outletId}`);
-    return;
-  }
+    if (cart.outletId) {
+      navigate(`/customer/${cart.outletId}`);
+      return;
+    }
 
-  navigate("/");
-};
+    navigate("/");
+  };
 
   const handleCheckout = () => {
     if (cart.items.length === 0) return;
@@ -87,13 +74,13 @@ const goToCustomerHome = () => {
         </div>
 
         {loading ? (
-          <div className="flex min-h-[420px] items-center justify-center rounded-3xl border border-gray-100 bg-white shadow-sm">
+          <div className="flex min-h-105 items-center justify-center rounded-3xl border border-gray-100 bg-white shadow-sm">
             <p className="text-sm font-medium text-gray-500">
               Loading your cart...
             </p>
           </div>
         ) : cart.items.length === 0 ? (
-          <div className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-gray-100 bg-white px-6 text-center shadow-sm">
+          <div className="flex min-h-105flex-col items-center justify-center rounded-3xl border border-gray-100 bg-white px-6 text-center shadow-sm">
             <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-orange-50 text-orange-500">
               <ShoppingBag size={36} />
             </div>
@@ -119,9 +106,7 @@ const goToCustomerHome = () => {
           <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
             <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-7">
               <div className="mb-6 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-gray-900">
-                  Cart items
-                </h3>
+                <h3 className="text-lg font-bold text-gray-900">Cart items</h3>
 
                 <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-semibold text-orange-600">
                   {cartCount} items
@@ -130,7 +115,13 @@ const goToCustomerHome = () => {
 
               <div className="divide-y divide-gray-100">
                 {cart.items.map(
-                  ({ id, menuItem, selectedVariant, quantity }) => (
+                  ({
+                    id,
+                    menuItem,
+                    selectedVariant,
+                    selectedAddons,
+                    quantity,
+                  }) => (
                     <article
                       key={id}
                       className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center"
@@ -153,6 +144,29 @@ const goToCustomerHome = () => {
                         <p className="mt-2 font-bold text-gray-900">
                           {formatPrice(selectedVariant.price)}
                         </p>
+                        {selectedAddons.length > 0 && (
+                          <div className="mt-3 space-y-1">
+                            <p className="text-xs font-medium text-gray-500">
+                              Selected add-ons
+                            </p>
+
+                            {selectedAddons.map((addon) => (
+                              <div
+                                key={addon.id}
+                                className="flex justify-between gap-4 text-sm text-gray-600"
+                              >
+                                <span>
+                                  {addon.name}
+                                  {addon.quantity > 1 && ` × ${addon.quantity}`}
+                                </span>
+
+                                <span>
+                                  {formatPrice(addon.price * addon.quantity)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex items-center justify-between gap-4 sm:flex-col sm:items-end">
@@ -186,7 +200,15 @@ const goToCustomerHome = () => {
                         </div>
 
                         <p className="font-bold text-gray-900">
-                          {formatPrice(selectedVariant.price * quantity)}
+                          {formatPrice(
+                            (selectedVariant.price +
+                              selectedAddons.reduce(
+                                (total, addon) =>
+                                  total + addon.price * addon.quantity,
+                                0,
+                              )) *
+                              quantity,
+                          )}
                         </p>
 
                         <button
@@ -205,9 +227,7 @@ const goToCustomerHome = () => {
             </section>
 
             <aside className="h-fit rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-              <h3 className="text-lg font-bold text-gray-900">
-                Order summary
-              </h3>
+              <h3 className="text-lg font-bold text-gray-900">Order summary</h3>
 
               <div className="mt-6 space-y-4 text-sm">
                 <div className="flex justify-between text-gray-600">

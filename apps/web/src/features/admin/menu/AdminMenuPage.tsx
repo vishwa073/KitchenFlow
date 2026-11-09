@@ -1,4 +1,3 @@
-
 import { Plus } from "lucide-react";
 
 import { useAdminMenu } from "../../../hooks/useAdminMenu";
@@ -7,8 +6,16 @@ import MenuStats from "./components/MenuStats";
 import MenuFilters from "./components/MenuFilters";
 import MenuItemsTable from "./components/MenuItemsTable";
 import MenuItemFormModal from "./components/MenuItemFormModal";
+import { useAuth } from "@clerk/react";
+import { useEffect } from "react";
+import { configureAdminMenuAuth } from "./services/adminMenuService";
 
 export default function AdminMenuPage() {
+  const { getToken } = useAuth();
+
+  useEffect(() => {
+    configureAdminMenuAuth(() => getToken());
+  }, [getToken]);
   const {
     items,
     filteredItems,
@@ -16,6 +23,9 @@ export default function AdminMenuPage() {
     categories,
     filters,
     setFilters,
+    isLoading,
+    error,
+    reload,
     isModalOpen,
     editingItem,
     form,
@@ -53,12 +63,32 @@ export default function AdminMenuPage() {
           <button
             type="button"
             onClick={openAddModal}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-700"
+            disabled={isLoading}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Plus size={18} />
             Add menu item
           </button>
         </div>
+
+        {/* Error state */}
+        {error && (
+          <div
+            role="alert"
+            className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <p className="text-sm text-red-700">{error}</p>
+
+            <button
+              type="button"
+              onClick={() => void reload()}
+              disabled={isLoading}
+              className="shrink-0 rounded-lg border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
+            >
+              Try again
+            </button>
+          </div>
+        )}
 
         {/* Statistics */}
         <MenuStats
@@ -92,14 +122,24 @@ export default function AdminMenuPage() {
           }
         />
 
-        {/* Menu items */}
-        <MenuItemsTable
-          items={filteredItems}
-          outlets={outlets}
-          onEdit={openEditModal}
-          onToggleAvailability={toggleAvailability}
-          onDelete={deleteMenuItem}
-        />
+        {/* Loading state */}
+        {isLoading ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-10 text-center">
+            <p className="text-sm font-medium text-slate-600">
+              Loading menu items...
+            </p>
+          </div>
+        ) : (
+          /* Menu items */
+
+          <MenuItemsTable
+            items={filteredItems}
+            outlets={outlets}
+            onEdit={openEditModal}
+            onToggleAvailability={toggleAvailability}
+            onDelete={deleteMenuItem}
+          />
+        )}
       </div>
 
       {/* Add / Edit modal */}

@@ -2,16 +2,17 @@ import KitchenHeader from "./component/KitchenHeader";
 import KitchenStats from "./component/KitchenStats";
 import KitchenOrderBoard from "./component/KitchenOrderBoard";
 import { useKitchenOrders } from "../../hooks/useKitchenOrders";
-
+import { useClerk } from "@clerk/react";
 export default function KitchenDisplayPage() {
   const kitchen = useKitchenOrders();
-
+  const { signOut } = useClerk();
   return (
     <main className="min-h-screen space-y-6 bg-gray-50 p-4 sm:p-6">
       <KitchenHeader
         outlets={kitchen.outlets}
         selectedOutlet={kitchen.selectedOutlet}
         onOutletChange={kitchen.setSelectedOutlet}
+        onSignOut={() => signOut({ redirectUrl: "/sign-in" })}
       />
 
       <KitchenStats

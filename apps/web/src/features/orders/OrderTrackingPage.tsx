@@ -1,8 +1,7 @@
-
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "@clerk/react";
-
+import { socket } from "../../lib/socket";
 import OrderStatusTimeline from "./components/OrderStatusTimeline";
 import { getOrderById } from "./services/orderService";
 import type { Order } from "./types/order";
@@ -33,7 +32,6 @@ export default function OrderTrackingPage() {
         return;
       }
 
-      setIsLoading(true);
       setError("");
 
       try {
@@ -53,14 +51,30 @@ export default function OrderTrackingPage() {
           );
         }
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     }
 
+    const handleStatusUpdate = (event: {
+      orderId: string;
+      status?: string;
+    }) => {
+    
+
+      if (event.orderId === orderId) {
+        void loadOrder();
+      }
+    };
+
     void loadOrder();
+
+    socket.on("order.status.updated", handleStatusUpdate);
 
     return () => {
       cancelled = true;
+      socket.off("order.status.updated", handleStatusUpdate);
     };
   }, [getToken, isLoaded, isSignedIn, orderId]);
 
@@ -90,9 +104,7 @@ export default function OrderTrackingPage() {
         </Link>
 
         <section className="rounded-2xl border bg-white p-6">
-          <p className="text-sm text-gray-500">
-            Order #{order.orderNumber}
-          </p>
+          <p className="text-sm text-gray-500">Order #{order.orderNumber}</p>
 
           <h1 className="mt-2 text-2xl font-bold text-gray-900">
             {order.status === "HANDED_OFF"
@@ -106,8 +118,8 @@ export default function OrderTrackingPage() {
 
           {order.estimatedPreparationMinutes && !isFinished && (
             <p className="mt-3 text-sm text-gray-500">
-              Estimated preparation time:{" "}
-              {order.estimatedPreparationMinutes} minutes
+              Estimated preparation time: {order.estimatedPreparationMinutes}{" "}
+              minutes
             </p>
           )}
 

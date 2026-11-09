@@ -101,6 +101,67 @@ async function seedMenu(outletIds: string[]) {
           },
         });
 
+        // Seed addons defined in menu.ts.
+        for (const [addonIndex, addonData] of itemData.addons.entries()) {
+          // Create or update the shared addon catalog entry.
+          const addon = await prisma.addon.upsert({
+            where: {
+              name: addonData.name,
+            },
+            update: {
+              isActive: true,
+            },
+            create: {
+              name: addonData.name,
+              isActive: true,
+            },
+          });
+
+          // Link this addon to the current menu item.
+          await prisma.menuItemAddon.upsert({
+            where: {
+              menuItemId_addonId: {
+                menuItemId: menuItem.id,
+                addonId: addon.id,
+              },
+            },
+            update: {
+              isRequired: false,
+              maxSelect: 1,
+              sortOrder: addonIndex,
+            },
+            create: {
+              menuItemId: menuItem.id,
+              addonId: addon.id,
+              isRequired: false,
+              maxSelect: 1,
+              sortOrder: addonIndex,
+            },
+          });
+                  console.log(`  Seeded menu item: ${itemData.name} (${itemIndex + 1})`);
+
+          // Create/update the addon price for every outlet.
+          for (const outletId of outletIds) {
+            await prisma.outletAddonPrice.upsert({
+              where: {
+                outletId_addonId: {
+                  outletId,
+                  addonId: addon.id,
+                },
+              },
+              update: {
+                price: addonData.price,
+                isAvailable: true,
+              },
+              create: {
+                outletId,
+                addonId: addon.id,
+                price: addonData.price,
+                isAvailable: true,
+              },
+            });
+          }
+        }
         // Attach the common catalog item to each outlet.
         for (const outletId of outletIds) {
           const outletMenuItem = await prisma.outletMenuItem.upsert({
@@ -142,15 +203,11 @@ async function seedMenu(outletIds: string[]) {
         }
       }
 
-      console.log(
-        `  Seeded menu item: ${itemData.name} (${itemIndex + 1})`,
-      );
+      console.log(`  Seeded menu item: ${itemData.name} (${itemIndex + 1})`);
     }
   }
 
-  console.log(
-    `Shared demo menu seeded for ${outletIds.length} outlets.`,
-  );
+  console.log(`Shared demo menu seeded for ${outletIds.length} outlets.`);
 }
 
 async function main() {
@@ -192,9 +249,7 @@ async function main() {
     });
   }
 
-  console.log(
-    `Seeded ${hyderabadOutlets.length} outlets for ${city.name}.`,
-  );
+  console.log(`Seeded ${hyderabadOutlets.length} outlets for ${city.name}.`);
 
   // 3. Get all active outlets in Hyderabad.
   const seededOutlets = await prisma.outlet.findMany({

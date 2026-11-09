@@ -1,8 +1,23 @@
 
-
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/react";
 import { useNavigate } from "react-router-dom";
+
+interface AuthUser {
+  id: string;
+  clerkUserId: string;
+  email: string;
+  fullName: string | null;
+  phone: string | null;
+  isActive: boolean;
+  roles: string[];
+}
+
+interface AuthMeResponse {
+  success: boolean;
+  user: AuthUser;
+  message?: string;
+}
 
 interface DefaultAddress {
   selectedOutletId: string | null;
@@ -13,6 +28,8 @@ interface DefaultAddressResponse {
   address: DefaultAddress | null;
   message?: string;
 }
+
+const API_BASE_URL = "http://localhost:4000";
 
 export default function PostAuthRedirect() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
@@ -25,7 +42,7 @@ export default function PostAuthRedirect() {
 
     let cancelled = false;
 
-    async function checkAddress() {
+    async function checkUserAndRedirect() {
       try {
         const token = await getToken();
 
@@ -33,46 +50,103 @@ export default function PostAuthRedirect() {
           throw new Error("Authentication token unavailable.");
         }
 
-        const response = await fetch(
-          "http://localhost:4000/api/addresses/default",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+        // Step 1: Identify the authenticated user and their DB roles.
+        const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
           },
-        );
+        });
 
-        const result: DefaultAddressResponse = await response.json();
+        const meResult: AuthMeResponse = await meResponse.json();
 
-        if (!response.ok || !result.success) {
+        if (!meResponse.ok || !meResult.success || !meResult.user) {
           throw new Error(
-            result.message || "Unable to check your saved address.",
+            meResult.message || "Unable to verify your account.",
           );
         }
 
         if (cancelled) return;
 
-        const selectedOutletId = result.address?.selectedOutletId;
+        const user = meResult.user;
 
-        if (selectedOutletId) {
-          navigate(`/customer/${selectedOutletId}`, { replace: true });
-        } else if (result.address) {
-          navigate("/outlets", { replace: true });
-        } else {
-          navigate("/onboarding", { replace: true });
+        if (!user.isActive) {
+          throw new Error("Your account is inactive. Please contact support.");
         }
+
+        const roles = user.roles ?? [];
+
+        // Step 2: Redirect staff/admin users.
+        // These roles are supplied by the backend, not by the client.
+        if (roles.includes("CENTRAL_ADMIN")) {
+          navigate("/admin", { replace: true });
+          return;
+        }
+
+        if (roles.includes("OUTLET_MANAGER")) {
+          navigate("/manager", { replace: true });
+          return;
+        }
+
+        if (roles.includes("KITCHEN_STAFF")) {
+          navigate("/kitchen", { replace: true });
+          return;
+        }
+
+        // Step 3: Preserve the existing customer address flow.
+        if (roles.includes("CUSTOMER")) {
+          const addressResponse = await fetch(
+            `${API_BASE_URL}/api/addresses/default`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          );
+
+          const addressResult: DefaultAddressResponse =
+            await addressResponse.json();
+
+          if (!addressResponse.ok || !addressResult.success) {
+            throw new Error(
+              addressResult.message ||
+                "Unable to check your saved address.",
+            );
+          }
+
+          if (cancelled) return;
+
+          const selectedOutletId =
+            addressResult.address?.selectedOutletId;
+
+          if (selectedOutletId) {
+            navigate(`/customer/${selectedOutletId}`, {
+              replace: true,
+            });
+          } else if (addressResult.address) {
+            navigate("/outlets", { replace: true });
+          } else {
+            navigate("/onboarding", { replace: true });
+          }
+
+          return;
+        }
+
+        // Do not silently route unknown roles into the customer flow.
+        throw new Error(
+          "Your account does not have a recognized KitchenFlow role.",
+        );
       } catch (err) {
         if (cancelled) return;
 
         setError(
           err instanceof Error
             ? err.message
-            : "Unable to check your onboarding status.",
+            : "Unable to check your account.",
         );
       }
     }
 
-    void checkAddress();
+    void checkUserAndRedirect();
 
     return () => {
       cancelled = true;
@@ -86,7 +160,9 @@ export default function PostAuthRedirect() {
           <h1 className="text-xl font-bold text-stone-900">
             Unable to continue
           </h1>
+
           <p className="mt-3 text-sm text-stone-600">{error}</p>
+
           <button
             onClick={() => window.location.reload()}
             className="mt-6 rounded-xl bg-orange-600 px-5 py-3 text-sm font-semibold text-white hover:bg-orange-700"

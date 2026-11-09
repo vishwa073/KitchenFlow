@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { useApi } from "../../lib/api";
@@ -134,9 +134,7 @@ export default function OutletPage() {
       return matchesCategory && matchesSearch;
     });
   }, [serviceableOutlets, search, category]);
-  const availableCount = filteredOutlets.filter(
-    (outlet) => outlet.isAvailable ?? outlet.isActive,
-  ).length;
+
 
   function handleSelectOutlet(outlet: Outlet) {
     const isAvailable = outlet.isAvailable ?? outlet.isActive;
@@ -233,7 +231,24 @@ export default function OutletPage() {
             </p>
           </div>
         </div>
-        {!serviceability ? (
+        {isLoading ? (
+          <div className="rounded-2xl border border-stone-200 bg-white px-6 py-12 text-center">
+            <p className="text-sm text-stone-500">Loading outlets...</p>
+          </div>
+        ) : loadError ? (
+          <div className="rounded-2xl border border-red-200 bg-white px-6 py-12 text-center">
+            <h4 className="text-lg font-semibold text-red-600">
+              Unable to load outlets
+            </h4>
+            <p className="mt-2 text-sm text-stone-500">{loadError}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white"
+            >
+              Retry
+            </button>
+          </div>
+        ) : !serviceability ? (
           <OutletGrid
             outlets={filteredOutlets}
             onSelectOutlet={handleSelectOutlet}
@@ -241,11 +256,9 @@ export default function OutletPage() {
         ) : serviceability.outlets.length === 0 ? (
           <div className="rounded-2xl border border-stone-200 bg-white px-6 py-12 text-center">
             <MapPin className="mx-auto mb-3 text-orange-600" size={28} />
-
             <h4 className="text-lg font-semibold">
               Sorry, we don’t deliver to this location
             </h4>
-
             <p className="mt-2 text-sm text-stone-500">
               Choose another location on the map and check delivery again.
             </p>
@@ -255,7 +268,6 @@ export default function OutletPage() {
             <h4 className="text-lg font-semibold">
               No outlets match your search
             </h4>
-
             <p className="mt-2 text-sm text-stone-500">
               Try a different search term or category.
             </p>
@@ -267,8 +279,6 @@ export default function OutletPage() {
           />
         )}
       </section>
-
-  
     </main>
   );
 }

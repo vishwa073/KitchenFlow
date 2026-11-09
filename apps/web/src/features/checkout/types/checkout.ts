@@ -1,4 +1,4 @@
-import type { Cart } from "../../cart/types/cart";
+
 
 export type PaymentMethod = "UPI" | "CARD";
 
@@ -44,6 +44,14 @@ export interface Order {
   address: string;
   landmark: string;
   paymentMethod: PaymentMethod;
+  promisedAt?: string | null;
+
+  prepTimeEstimates?: {
+    estimatedMinutes: number;
+    source: "AI" | "FALLBACK" | "MANUAL_OVERRIDE";
+    reason?: string | null;
+    estimatedAt?: string;
+  }[];
 
   // Changed to OrderItem[] because confirmation page uses
   // menuItemName, lineTotal, variantName, and addons.

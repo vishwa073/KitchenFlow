@@ -1,7 +1,4 @@
-import type {
-  KitchenActionStatus,
-  KitchenOrder,
-} from "../types/kitchenOrder";
+import type { KitchenActionStatus, KitchenOrder } from "../types/kitchenOrder";
 import KitchenEmptyState from "./KitchenEmptyState";
 import KitchenOrderCard from "./KitchenOrderCard";
 
@@ -9,8 +6,8 @@ type KitchenOrderBoardProps = {
   orders: KitchenOrder[];
   onUpdateStatus: (
     orderId: string,
-    status: KitchenActionStatus
-  ) => void;
+    status: KitchenActionStatus,
+  ) => Promise<void>;
 };
 
 export default function KitchenOrderBoard({

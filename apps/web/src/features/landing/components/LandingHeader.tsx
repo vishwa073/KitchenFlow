@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, UtensilsCrossed } from "lucide-react";
+import { UtensilsCrossed } from "lucide-react";
 import AuthActions from "../../auth/components/AuthActions";
 export default function LandingHeader() {
   return (

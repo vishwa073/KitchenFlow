@@ -22,6 +22,8 @@ export const env = {
   PORT: portValue,
   WEB_URL: getEnv("WEB_URL", "http://localhost:5173"),
 
+  CLERK_SECRET_KEY: getEnv("CLERK_SECRET_KEY"),
+
   // WhatsApp via WAHA
   WAHA_BASE_URL: getEnv("WAHA_BASE_URL", "http://localhost:3001"),
   WAHA_API_KEY: getEnv("WAHA_API_KEY"),

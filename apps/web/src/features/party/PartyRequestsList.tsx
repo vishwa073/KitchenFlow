@@ -1,4 +1,4 @@
-import { CalendarDays, UsersRound, ChevronRight } from "lucide-react";
+import { CalendarDays, UsersRound } from "lucide-react";
 import type { PartyRequest } from "./party.types";
 
 interface PartyRequestsListProps {

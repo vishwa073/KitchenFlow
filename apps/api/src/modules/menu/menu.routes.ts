@@ -41,6 +41,7 @@ menuRouter.get("/:outletId", async (req, res, next) => {
         menuItem: {
           include: {
             category: true,
+
             variants: {
               where: {
                 isActive: true,
@@ -54,6 +55,24 @@ menuRouter.get("/:outletId", async (req, res, next) => {
                     isAvailable: true,
                     outletMenuItem: {
                       outletId,
+                    },
+                  },
+                },
+              },
+            },
+
+            itemAddons: {
+              orderBy: {
+                sortOrder: "asc",
+              },
+              include: {
+                addon: {
+                  include: {
+                    outletPrices: {
+                      where: {
+                        outletId,
+                        isAvailable: true,
+                      },
                     },
                   },
                 },
@@ -85,7 +104,28 @@ menuRouter.get("/:outletId", async (req, res, next) => {
             };
           })
           .filter(Boolean);
+        const availableAddons = menuItem.itemAddons
+          .map((itemAddon) => {
+            const addon = itemAddon.addon;
+            const outletPrice = addon.outletPrices[0];
 
+            if (!addon.isActive || !outletPrice) {
+              return null;
+            }
+
+            return {
+              id: outletPrice.id,
+              addonId: addon.id,
+              name: addon.name,
+              description: addon.description ?? "",
+              price: Number(outletPrice.price),
+              isAvailable: outletPrice.isAvailable,
+              isRequired: itemAddon.isRequired,
+              maxSelect: itemAddon.maxSelect,
+              sortOrder: itemAddon.sortOrder,
+            };
+          })
+          .filter((addon) => addon !== null);
         if (availableVariants.length === 0) return null;
 
         const lowestPrice = Math.min(
@@ -105,6 +145,7 @@ menuRouter.get("/:outletId", async (req, res, next) => {
           isVegetarian: menuItem.foodType === "VEG",
           isPopular: false,
           variants: availableVariants,
+          addons: availableAddons,
         };
       })
       .filter(Boolean);

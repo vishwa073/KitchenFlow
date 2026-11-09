@@ -614,6 +614,7 @@ model OrderCancellation {
 
 enum PrepEstimateSource {
   AI
+  FALLBACK
   MANUAL_OVERRIDE
 }
 

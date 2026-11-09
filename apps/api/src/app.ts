@@ -13,7 +13,11 @@ import menuRoutes from "./modules/menu/menu.routes.js";
 import cartRouter from "./modules/cart/cart.routes.js";
 import ordersRouter from "./modules/orders/orders.routes.js";
 import partyRouter from "./modules/party/party.routes.js";
-
+import loyaltyRouter from "./modules/orders/loyalty.routes.js";
+import kitchenRouter from "./modules/kitchen/kitchen.routes.js";
+import managementRouter from "./modules/management/management.routes.js";
+import managerMenuRouter from "./modules/management/manager-menu.routes.js";
+import managerOrdersRouter from "./modules/management/manager-orders.routes.js";
 const app = express();
 
 // Clerk middleware must run before other middleware
@@ -33,8 +37,15 @@ app.use("/api/serviceability", serviceabilityRoutes);
 app.use("/api/menu", menuRoutes);
 app.use("/api/cart", cartRouter);
 app.use("/api/orders", ordersRouter);
+app.use("/api/loyalty", loyaltyRouter);
 app.use("/api/party", partyRouter);
-
+app.use("/api/kitchen", kitchenRouter)
+app.use("/api/management", managementRouter);
+app.use("/api/management/manager/orders", managerOrdersRouter);
+app.use("/api/management/manager/menu-items", managerMenuRouter);
+app.get("/api/kitchen/ping", (_req, res) => {
+  res.json({ success: true, message: "Kitchen route is mounted" });
+});
 app.use("/api/outlets", outletRoutes);
 // Authentication routes
 app.use("/api/auth", authRouter);

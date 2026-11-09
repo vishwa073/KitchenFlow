@@ -1,7 +1,9 @@
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { adminMenuService } from "../features/admin/menu/services/adminMenuService";
+import {
+  adminMenuService,
+  toggleOutletAvailability,
+} from "../features/admin/menu/services/adminMenuService";
 
 import type { MenuItem } from "../features/menu/types/menu";
 
@@ -9,11 +11,15 @@ import type {
   CreateMenuItemInput,
   UpdateMenuItemInput,
   MenuFilters,
+  ManagerMenuItem,
 } from "../features/admin/menu/types/adminMenu";
 
 import type { MenuFormData } from "../features/admin/menu/types/menuForm";
 
 import { outlets } from "../features/outlets/data/outlets";
+
+const DEFAULT_IMAGE =
+  "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80";
 
 const emptyForm: MenuFormData = {
   name: "",
@@ -26,7 +32,7 @@ const emptyForm: MenuFormData = {
 };
 
 export function useAdminMenu() {
-  const [items, setItems] = useState<MenuItem[]>([]);
+  const [items, setItems] = useState<ManagerMenuItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,11 +40,11 @@ export function useAdminMenu() {
     search: "",
     outletId: "All",
     category: "All",
-    showUnavailable: false,
+    showUnavailable: true,
   });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [editingItem, setEditingItem] = useState<ManagerMenuItem | null>(null);
   const [form, setForm] = useState<MenuFormData>(emptyForm);
 
   const loadItems = useCallback(async () => {
@@ -48,9 +54,19 @@ export function useAdminMenu() {
 
       const data = await adminMenuService.getAll();
       setItems(data);
+
+      // Use the outlet assigned to the logged-in manager.
+      const managerOutletId = data[0]?.outletId;
+
+      if (managerOutletId) {
+        setForm((current) => ({
+          ...current,
+          outletId: managerOutletId,
+        }));
+      }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to load menu items."
+        err instanceof Error ? err.message : "Failed to load menu items.",
       );
     } finally {
       setIsLoading(false);
@@ -63,35 +79,51 @@ export function useAdminMenu() {
 
   const createItem = async (input: CreateMenuItemInput) => {
     const createdItem = await adminMenuService.create(input);
+
     setItems((current) => [createdItem, ...current]);
+
     return createdItem;
   };
 
-  const updateItem = async (
-    id: string,
-    input: UpdateMenuItemInput
-  ) => {
+  const updateItem = async (id: string, input: UpdateMenuItemInput) => {
     const updatedItem = await adminMenuService.update(id, input);
 
     setItems((current) =>
-      current.map((item) => (item.id === id ? updatedItem : item))
+      current.map((item) => (item.id === id ? updatedItem : item)),
     );
 
     return updatedItem;
   };
 
-  const toggleAvailability = async (id: string) => {
-    const updatedItem = await adminMenuService.toggleAvailability(id);
+  const toggleAvailability = async (
+    item: MenuItem & { menuItemId: string },
+  ) => {
+    try {
+      await toggleOutletAvailability(
+        item.outletId,
+        item.menuItemId,
+        !item.isAvailable,
+      );
 
-    setItems((current) =>
-      current.map((item) => (item.id === id ? updatedItem : item))
-    );
-
-    return updatedItem;
+      setItems((currentItems) =>
+        currentItems.map((currentItem) =>
+          currentItem.id === item.id
+            ? { ...currentItem, isAvailable: !currentItem.isAvailable }
+            : currentItem,
+        ),
+      );
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to update item availability.",
+      );
+    }
   };
 
   const deleteItem = async (id: string) => {
     await adminMenuService.delete(id);
+
     setItems((current) => current.filter((item) => item.id !== id));
   };
 
@@ -107,7 +139,7 @@ export function useAdminMenu() {
 
   const categories = useMemo(
     () => ["All", ...new Set(items.map((item) => item.category))],
-    [items]
+    [items],
   );
 
   const filteredItems = useMemo(() => {
@@ -124,14 +156,10 @@ export function useAdminMenu() {
       const matchesCategory =
         filters.category === "All" || item.category === filters.category;
 
-      const matchesAvailability =
-        filters.showUnavailable || item.isAvailable;
+      const matchesAvailability = filters.showUnavailable || item.isAvailable;
 
       return (
-        matchesSearch &&
-        matchesOutlet &&
-        matchesCategory &&
-        matchesAvailability
+        matchesSearch && matchesOutlet && matchesCategory && matchesAvailability
       );
     });
   }, [items, filters]);
@@ -139,19 +167,18 @@ export function useAdminMenu() {
   const openAddModal = () => {
     setEditingItem(null);
 
+    const managerOutletId = items[0]?.outletId ?? emptyForm.outletId;
+
     setForm({
       ...emptyForm,
-      outletId:
-        filters.outletId === "All"
-          ? outlets[0]?.id ?? ""
-          : filters.outletId,
+      outletId: managerOutletId,
     });
 
     setIsModalOpen(true);
   };
 
   const openEditModal = (item: MenuItem) => {
-    setEditingItem(item);
+    setEditingItem(item as ManagerMenuItem);
 
     setForm({
       name: item.name,
@@ -174,7 +201,7 @@ export function useAdminMenu() {
 
   const updateForm = <K extends keyof MenuFormData>(
     key: K,
-    value: MenuFormData[K]
+    value: MenuFormData[K],
   ) => {
     setForm((current) => ({
       ...current,
@@ -217,9 +244,11 @@ export function useAdminMenu() {
       } else {
         const newItem: CreateMenuItemInput = {
           ...commonFields,
-          image:
-            "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+          menuItemId: crypto.randomUUID(),
+          image: DEFAULT_IMAGE,
           isAvailable: true,
+          variants: [],
+          addons: [],
         };
 
         await createItem(newItem);
@@ -228,14 +257,14 @@ export function useAdminMenu() {
       closeModal();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to save menu item."
+        err instanceof Error ? err.message : "Failed to save menu item.",
       );
     }
   };
 
   const deleteMenuItem = async (id: string) => {
     const shouldDelete = window.confirm(
-      "Are you sure you want to delete this menu item?"
+      "Are you sure you want to delete this menu item?",
     );
 
     if (!shouldDelete) return;
@@ -245,7 +274,7 @@ export function useAdminMenu() {
       await deleteItem(id);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to delete menu item."
+        err instanceof Error ? err.message : "Failed to delete menu item.",
       );
     }
   };

@@ -1,9 +1,14 @@
-import type { MenuItem, MenuVariant } from "../types/menu";
+
+import type { MenuAddon, MenuItem, MenuVariant } from "../types/menu";
 import MenuItemCard from "./MenuItemCard";
 
 interface MenuGridProps {
   items: MenuItem[];
-  onAddToCart: (item: MenuItem, variant: MenuVariant) => void;
+  onAddToCart: (
+    item: MenuItem,
+    variant: MenuVariant,
+    addons: MenuAddon[],
+  ) => Promise<void>;
 }
 
 export default function MenuGrid({

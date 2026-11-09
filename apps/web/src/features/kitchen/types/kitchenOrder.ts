@@ -1,7 +1,17 @@
 
-import type { Order, OrderStatus } from "../../orders/types/order";
+import type { Order } from "../../orders/types/order";
 
-export type KitchenOrder = Order & {
+export type KitchenUiStatus =
+  | "PENDING_ACCEPTANCE"
+  | "ACCEPTED"
+  | "PREPARING"
+  | "READY"
+  | "OUT_FOR_DELIVERY"
+  | "HANDED_OFF"
+  | "CANCELLED";
+
+export type KitchenOrder = Omit<Order, "status"> & {
+  status: KitchenUiStatus;
   outletId: string;
   paymentMethod: "UPI" | "CARD";
   promisedAt: string;
@@ -12,14 +22,15 @@ export type KitchenActionStatus =
   | "ACCEPTED"
   | "PREPARING"
   | "READY"
+  | "HANDED_OFF"
   | "OUT_FOR_DELIVERY";
 
-export const kitchenStatusLabels: Record<OrderStatus, string> = {
+export const kitchenStatusLabels: Record<KitchenUiStatus, string> = {
   PENDING_ACCEPTANCE: "Incoming",
   ACCEPTED: "Accepted",
   PREPARING: "Preparing",
   READY: "Ready for pickup",
   OUT_FOR_DELIVERY: "Rider handoff",
-  DELIVERED: "Delivered",
+  HANDED_OFF: "Handed off",
   CANCELLED: "Cancelled",
 };

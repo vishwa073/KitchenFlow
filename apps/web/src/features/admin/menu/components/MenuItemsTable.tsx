@@ -2,16 +2,20 @@
 import { Eye, EyeOff, Pencil, Trash2, Utensils } from "lucide-react";
 import type { MenuItem } from "../../../menu/types/menu";
 
+type ManagerMenuItem = MenuItem & {
+  menuItemId: string;
+};
+
 type OutletOption = {
   id: string;
   name: string;
 };
 
 type MenuItemsTableProps = {
-  items: MenuItem[];
+  items: ManagerMenuItem[];
   outlets: OutletOption[];
   onEdit: (item: MenuItem) => void;
-  onToggleAvailability: (id: string) => void;
+  onToggleAvailability: (item: ManagerMenuItem) => void;
   onDelete: (id: string) => void;
 };
 
@@ -38,18 +42,16 @@ export default function MenuItemsTable({
       {items.length === 0 ? (
         <div className="px-6 py-16 text-center">
           <Utensils className="mx-auto text-slate-300" size={36} />
-
           <h3 className="mt-3 font-semibold text-slate-800">
             No menu items found
           </h3>
-
           <p className="mt-1 text-sm text-slate-500">
             Try changing the search or filter options.
           </p>
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[850px] text-left">
+          <table className="w-full min-w-212.5text-left">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-5 py-4 font-semibold">Item</th>
@@ -65,7 +67,7 @@ export default function MenuItemsTable({
 
             <tbody className="divide-y divide-slate-100">
               {items.map((item) => (
-                <tr key={item.id} className="transition hover:bg-slate-50">
+                <tr key={`${item.outletId}-${item.menuItemId}`} className="transition hover:bg-slate-50">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
                       <img
@@ -134,7 +136,7 @@ export default function MenuItemsTable({
 
                       <button
                         type="button"
-                        onClick={() => onToggleAvailability(item.id)}
+                        onClick={() => onToggleAvailability(item)}
                         title={
                           item.isAvailable
                             ? "Mark unavailable"

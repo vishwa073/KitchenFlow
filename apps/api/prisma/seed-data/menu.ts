@@ -9,11 +9,18 @@ export const demoMenu = [
         foodType: "NON_VEG" as const,
         spiceLevel: "MEDIUM" as const,
         prepTimeMin: 25,
+        // Replaced the previous image URL.
         imageUrl:
-          "https://images.unsplash.com/photo-1563379091339-03246963d96c",
+          "https://images.unsplash.com/photo-1589302168068-964664d93dc0?auto=format&fit=crop&w=800&q=80",
         variants: [
           { name: "Regular", price: 249 },
           { name: "Large", price: 349 },
+        ],
+        addons: [
+          { name: "Extra Chicken", price: 80 },
+          { name: "Boiled Egg", price: 20 },
+          { name: "Extra Raita", price: 25 },
+          { name: "Extra Salan", price: 20 },
         ],
       },
       {
@@ -28,6 +35,11 @@ export const demoMenu = [
         variants: [
           { name: "Regular", price: 199 },
           { name: "Large", price: 279 },
+        ],
+        addons: [
+          { name: "Extra Paneer", price: 60 },
+          { name: "Extra Raita", price: 25 },
+          { name: "Extra Salan", price: 20 },
         ],
       },
     ],
@@ -45,6 +57,10 @@ export const demoMenu = [
         imageUrl:
           "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398",
         variants: [{ name: "Regular", price: 179 }],
+        addons: [
+          { name: "Extra Chicken 65", price: 70 },
+          { name: "Mint Chutney", price: 20 },
+        ],
       },
       {
         name: "Paneer Tikka",
@@ -56,6 +72,10 @@ export const demoMenu = [
         imageUrl:
           "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8",
         variants: [{ name: "Regular", price: 169 }],
+        addons: [
+          { name: "Extra Paneer Tikka", price: 60 },
+          { name: "Mint Chutney", price: 20 },
+        ],
       },
     ],
   },
@@ -72,6 +92,7 @@ export const demoMenu = [
         imageUrl:
           "https://images.unsplash.com/photo-1571934811356-5cc061b6821f",
         variants: [{ name: "Regular", price: 49 }],
+        addons: [{ name: "Extra Chai", price: 15 }],
       },
     ],
   },

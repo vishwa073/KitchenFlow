@@ -1,6 +1,5 @@
-
 import type { Order, PlaceOrderInput } from "../types/checkout";
-import { useApi } from "../../../lib/api";
+
 
 export async function placeOrder(
   input: PlaceOrderInput,
@@ -27,6 +26,7 @@ export async function placeOrder(
     body: JSON.stringify({
       addressId: input.addressId,
       paymentMethod: input.paymentMethod,
+      redeemPoints: input.redeemPoints ?? 0,
     }),
   });
 

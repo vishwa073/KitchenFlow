@@ -72,7 +72,7 @@ function normalizeStatusHistory(value: unknown): OrderStatusUpdate[] {
   });
 }
 
-function normalizeOrder(value: unknown): Order {
+export function normalizeOrder(value: unknown): Order {
   const raw = asObject(value);
   const outlet = asObject(raw.outlet);
   const address = raw.deliveryAddressSnapshot;

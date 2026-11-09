@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
@@ -56,6 +55,8 @@ export function useCheckout() {
   // Loyalty redemption is optional. The backend validates the balance
   // and calculates the final redeemed amount when the order is placed.
   const [redeemPoints, setRedeemPoints] = useState(0);
+  const [availableLoyaltyPoints, setAvailableLoyaltyPoints] = useState(0);
+  const [isLoadingLoyalty, setIsLoadingLoyalty] = useState(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -82,9 +83,7 @@ export function useCheckout() {
         const result = (await response.json()) as AddressesResponse;
 
         if (!response.ok || !result.success) {
-          throw new Error(
-            result.message || "Unable to load saved addresses.",
-          );
+          throw new Error(result.message || "Unable to load saved addresses.");
         }
 
         const loadedAddresses = result.addresses ?? [];
@@ -130,6 +129,50 @@ export function useCheckout() {
     };
   }, [apiFetch, isLoaded, isSignedIn]);
 
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    if (!isSignedIn) {
+      setAvailableLoyaltyPoints(0);
+      setIsLoadingLoyalty(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadLoyaltyBalance() {
+      setIsLoadingLoyalty(true);
+
+      try {
+        const response = await apiFetch("/api/loyalty/balance");
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || "Unable to load loyalty balance.");
+        }
+
+        if (!cancelled) {
+          setAvailableLoyaltyPoints(Number(result.points) || 0);
+        }
+      } catch (error) {
+        console.error("Failed to load loyalty balance:", error);
+
+        if (!cancelled) {
+          setAvailableLoyaltyPoints(0);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingLoyalty(false);
+        }
+      }
+    }
+
+    void loadLoyaltyBalance();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiFetch, isLoaded, isSignedIn]);
   const selectedAddress =
     addresses.find((address) => address.id === selectedAddressId) ?? null;
 
@@ -148,16 +191,20 @@ export function useCheckout() {
     discountedSubtotal === 0 || discountedSubtotal >= 499 ? 0 : 40;
 
   // Tax is calculated on the discounted subtotal.
-  const taxes = Number((discountedSubtotal * 0.05).toFixed(2));
+  // Menu prices are GST-inclusive.
+  // Extract the included 5% GST instead of adding it on top.
+  const taxes = Number(((discountedSubtotal * 5) / 105).toFixed(2));
 
+  // Delivery fee is separate from the GST-inclusive menu amount.
   const totalBeforeLoyalty = Number(
-    (discountedSubtotal + deliveryFee + taxes).toFixed(2),
+    (discountedSubtotal + deliveryFee).toFixed(2),
   );
 
   // Backend rule: 1 loyalty point = ₹1.
   // Redeem whole points only, and never discount more than the order total.
   const effectiveRedeemPoints = Math.min(
     Math.max(0, Math.floor(redeemPoints)),
+    availableLoyaltyPoints,
     Math.floor(totalBeforeLoyalty),
   );
 
@@ -166,6 +213,12 @@ export function useCheckout() {
   const total = Number(
     Math.max(0, totalBeforeLoyalty - loyaltyDiscount).toFixed(2),
   );
+
+  const handleUseAllLoyaltyPoints = () => {
+    setRedeemPoints(
+      Math.min(availableLoyaltyPoints, Math.floor(totalBeforeLoyalty)),
+    );
+  };
 
   const handleApplyCoupon = async (code: string) => {
     setError("");
@@ -276,5 +329,8 @@ export function useCheckout() {
     isSubmitting,
     error,
     handlePlaceOrder,
+    availableLoyaltyPoints,
+    isLoadingLoyalty,
+    handleUseAllLoyaltyPoints,
   };
 }

@@ -1,4 +1,3 @@
-import { menuItems as initialMenuItems } from "../../../menu/data/menuItems";
 import type { MenuItem } from "../../../menu/types/menu";
 import type {
   AdminMenuService,
@@ -6,7 +5,7 @@ import type {
   UpdateMenuItemInput,
 } from "../types/adminMenu";
 
-let items: MenuItem[] = [...initialMenuItems];
+let items: MenuItem[] = [];
 
 const delay = (ms = 150) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -38,7 +37,7 @@ export const mockAdminMenuService: AdminMenuService = {
       throw new Error("Menu item not found.");
     }
 
-    const updatedItem = {
+    const updatedItem: MenuItem = {
       ...existingItem,
       ...input,
     };

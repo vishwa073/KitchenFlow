@@ -5,6 +5,18 @@ export interface MenuVariant {
   price: number;
 }
 
+export type MenuAddon = {
+  id: string; // OutletAddonPrice ID
+  addonId: string;
+  name: string;
+  description: string;
+  price: number;
+  isAvailable: boolean;
+  isRequired: boolean;
+  maxSelect: number;
+  sortOrder: number;
+};
+
 export interface MenuItem {
   id: string; // OutletMenuItem ID
   outletId: string;
@@ -18,6 +30,7 @@ export interface MenuItem {
   isVegetarian: boolean;
   isPopular: boolean;
   variants: MenuVariant[];
+  addons: MenuAddon[];
 }
 
 export interface MenuCategory {
