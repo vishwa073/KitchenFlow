@@ -7,8 +7,9 @@ import {
   useOnboarding,
   type ServiceableOutlet,
 } from "../../hooks/useOnboarding";
+import { useApi } from "../../lib/api";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@clerk/react";
+// import { useAuth } from "@clerk/react";
 export default function OnboardingPage() {
   const {
     activeStep,
@@ -22,7 +23,8 @@ export default function OnboardingPage() {
     savedAddressId,
   } = useOnboarding();
   const navigate = useNavigate();
-  const { getToken } = useAuth();
+  // const { getToken } = useAuth();
+  const { apiFetch } = useApi();
   async function handleSelectOutlet(outlet: ServiceableOutlet) {
   if (!savedAddressId) {
     console.error("No saved address ID available.");
@@ -31,20 +33,10 @@ export default function OnboardingPage() {
   }
 
   try {
-    const token = await getToken();
-
-    if (!token) {
-      throw new Error("You are not authenticated. Please sign in again.");
-    }
-
-    const response = await fetch(
-      `http://localhost:4000/api/addresses/${savedAddressId}/select-outlet`,
+    const response = await apiFetch(
+      `/api/addresses/${savedAddressId}/select-outlet`,
       {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           outletId: outlet.id,
         }),
@@ -55,13 +47,15 @@ export default function OnboardingPage() {
 
     if (!response.ok || !result.success) {
       throw new Error(
-        result.message || `Failed to save selected outlet. HTTP ${response.status}`,
+        result.message ||
+          `Failed to save selected outlet. HTTP ${response.status}`,
       );
     }
 
     navigate(`/customer/${outlet.id}`);
   } catch (error) {
     console.error("Error saving selected outlet:", error);
+
     alert(
       error instanceof Error
         ? error.message

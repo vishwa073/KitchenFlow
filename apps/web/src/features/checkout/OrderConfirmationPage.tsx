@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { useAuth } from "@clerk/react";
+import { useApi } from "../../lib/api";
 import { CheckCircle2, Clock, MessageCircle, ShoppingBag } from "lucide-react";
 
 type OrderData = Record<string, any>;
@@ -40,12 +40,10 @@ function formatCurrency(amount: number | undefined) {
   });
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4000";
-
 export default function OrderConfirmationPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { getToken } = useAuth();
+  const { apiFetch } = useApi();
 
   const initialOrder = location.state?.order as OrderData | undefined;
 
@@ -71,18 +69,10 @@ export default function OrderConfirmationPage() {
         setLoading(true);
         setError("");
 
-        const token = await getToken();
-
-        if (!token) {
-          throw new Error("Please sign in again to view your order.");
-        }
-
-        const response = await fetch(
-          `${API_BASE}/api/orders/${encodeURIComponent(databaseOrderId!)}`,
+        const response = await apiFetch(
+          `/api/orders/${encodeURIComponent(databaseOrderId!)}`,
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            method: "GET",
           },
         );
 
@@ -115,7 +105,7 @@ export default function OrderConfirmationPage() {
     return () => {
       cancelled = true;
     };
-  }, [databaseOrderId, getToken]);
+ }, [databaseOrderId, apiFetch]);
 
   const orderNumber = getText(order?.orderNumber, order?.id);
 
