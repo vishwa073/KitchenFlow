@@ -6,7 +6,7 @@ import OtpInput from "./OtpInput";
 import PhoneEntryForm from "./phone-verification/PhoneEntryForm";
 import VerificationHeader from "./phone-verification/VerificationHeader";
 import VerificationSuccess from "./phone-verification/VerificationSuccess";
-
+import { useApi } from "../../../lib/api";
 type PhoneVerificationProps = {
   onVerified: (phoneNumber: string) => void;
 };
@@ -18,14 +18,15 @@ type ApiResponse = {
   expiresInSeconds?: number;
 };
 
-const API_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:4000"
-).replace(/\/$/, "");;
+// const API_URL = (
+//   import.meta.env.VITE_API_URL || "http://localhost:4000"
+// ).replace(/\/$/, "");
 
 export default function PhoneVerification({
   onVerified,
 }: PhoneVerificationProps) {
   const { isLoaded, isSignedIn } = useUser();
+  const { apiFetch } = useApi();
 
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -51,18 +52,10 @@ export default function PhoneVerification({
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${API_URL}/api/auth/whatsapp/send-otp`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({ phone: formattedPhone }),
-        },
-      );
-
+      const response = await apiFetch("/api/auth/whatsapp/send-otp", {
+        method: "POST",
+        body: JSON.stringify({ phone: formattedPhone }),
+      });
       const data = (await response.json()) as ApiResponse;
 
       if (!response.ok || !data.success) {
@@ -70,9 +63,7 @@ export default function PhoneVerification({
       }
 
       setCode("");
-      setSuccessMessage(
-        data.message || "OTP sent to your WhatsApp number.",
-      );
+      setSuccessMessage(data.message || "OTP sent to your WhatsApp number.");
       setStep("otp");
     } catch (err) {
       setError(
@@ -97,20 +88,13 @@ export default function PhoneVerification({
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${API_URL}/api/auth/whatsapp/verify-otp`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            phone: formattedPhone,
-            code,
-          }),
-        },
-      );
+      const response = await apiFetch("/api/auth/whatsapp/verify-otp", {
+        method: "POST",
+        body: JSON.stringify({
+          phone: formattedPhone,
+          code,
+        }),
+      });
 
       const data = (await response.json()) as ApiResponse;
 
@@ -175,7 +159,8 @@ export default function PhoneVerification({
       ) : (
         <form onSubmit={verifyCode} className="space-y-4">
           <p className="text-sm text-slate-500">
-            {successMessage || `Enter the code sent to ${formattedPhone} on WhatsApp.`}
+            {successMessage ||
+              `Enter the code sent to ${formattedPhone} on WhatsApp.`}
           </p>
 
           <label className="block">
