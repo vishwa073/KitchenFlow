@@ -18,6 +18,7 @@ import kitchenRouter from "./modules/kitchen/kitchen.routes.js";
 import managementRouter from "./modules/management/management.routes.js";
 import managerMenuRouter from "./modules/management/manager-menu.routes.js";
 import managerOrdersRouter from "./modules/management/manager-orders.routes.js";
+import adminCouponsRouter from "./modules/management/admin-coupons.routes.js";
 const app = express();
 
 // Clerk middleware must run before other middleware
@@ -41,6 +42,7 @@ app.use("/api/loyalty", loyaltyRouter);
 app.use("/api/party", partyRouter);
 app.use("/api/kitchen", kitchenRouter)
 app.use("/api/management", managementRouter);
+app.use("/api/management/admin/coupons", adminCouponsRouter);
 app.use("/api/management/manager/orders", managerOrdersRouter);
 app.use("/api/management/manager/menu-items", managerMenuRouter);
 app.get("/api/kitchen/ping", (_req, res) => {

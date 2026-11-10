@@ -12,7 +12,7 @@ export default function KitchenDisplayPage() {
         outlets={kitchen.outlets}
         selectedOutlet={kitchen.selectedOutlet}
         onOutletChange={kitchen.setSelectedOutlet}
-        onSignOut={() => signOut({ redirectUrl: "/sign-in" })}
+        onSignOut={() => signOut({ redirectUrl: "/" })}
       />
 
       <KitchenStats

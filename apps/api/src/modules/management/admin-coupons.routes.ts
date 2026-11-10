@@ -90,7 +90,7 @@ adminCouponsRouter.post("/", requireCentralAdmin, async (req, res, next) => {
     if (
       typeof code !== "string" ||
       code.trim() === "" ||
-      (discountType !== "PERCENTAGE" && discountType !== "FIXED") ||
+      (discountType !== "PERCENTAGE" && discountType !== "FIXED_AMOUNT") ||
       typeof discountValue !== "number" ||
       !Number.isFinite(discountValue) ||
       discountValue <= 0 ||
@@ -200,54 +200,58 @@ adminCouponsRouter.post("/", requireCentralAdmin, async (req, res, next) => {
 });
 
 // DELETE /api/management/admin/coupons/:id
-adminCouponsRouter.delete("/:id", requireCentralAdmin, async (req, res, next) => {
-  try {
-    const id = req.params.id;
+adminCouponsRouter.delete(
+  "/:id",
+  requireCentralAdmin,
+  async (req, res, next) => {
+    try {
+      const id = req.params.id;
 
-    if (typeof id !== "string") {
-      res.status(400).json({
-        success: false,
-        message: "Invalid coupon ID.",
+      if (typeof id !== "string") {
+        res.status(400).json({
+          success: false,
+          message: "Invalid coupon ID.",
+        });
+        return;
+      }
+
+      const coupon = await prisma.coupon.findUnique({
+        where: { id },
       });
-      return;
-    }
 
-    const coupon = await prisma.coupon.findUnique({
-      where: { id },
-    });
+      if (!coupon) {
+        res.status(404).json({
+          success: false,
+          message: "Coupon not found.",
+        });
+        return;
+      }
 
-    if (!coupon) {
-      res.status(404).json({
-        success: false,
-        message: "Coupon not found.",
+      await prisma.coupon.delete({
+        where: { id },
       });
-      return;
-    }
 
-    await prisma.coupon.delete({
-      where: { id },
-    });
-
-    res.status(200).json({
-      success: true,
-      message: "Coupon deleted successfully.",
-    });
-  } catch (error) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "P2003"
-    ) {
-      res.status(409).json({
-        success: false,
-        message: "This coupon has redemption history and cannot be deleted.",
+      res.status(200).json({
+        success: true,
+        message: "Coupon deleted successfully.",
       });
-      return;
-    }
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "P2003"
+      ) {
+        res.status(409).json({
+          success: false,
+          message: "This coupon has redemption history and cannot be deleted.",
+        });
+        return;
+      }
 
-    next(error);
-  }
-});
+      next(error);
+    }
+  },
+);
 
 export default adminCouponsRouter;

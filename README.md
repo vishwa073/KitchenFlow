@@ -1,290 +1,292 @@
 # KitchenFlow
 
-KitchenFlow is a full-stack food ordering and kitchen operations platform. It supports customer ordering, outlet-based menus, checkout, order tracking, loyalty, party orders, kitchen workflows, and role-based management tools.
+**Live application:** https://kitchen-flow-lemon.vercel.app/  
+**Backend API:** https://kitchenflow-mept.onrender.com  
+**Repository:** https://github.com/vishwa073/KitchenFlow
 
-## Features
+KitchenFlow is a full-stack food ordering and kitchen operations platform built around multiple outlets. Customers can discover outlets, browse menus, place and track orders, manage delivery details, and submit party-order requests. Outlet teams use dedicated kitchen and manager workflows, while central administrators manage the wider platform.
 
-- Browse active outlets and outlet-specific menus
-- Menu variants, add-ons, dietary information, spice levels, and preparation times
-- Cart and authenticated checkout flow
-- Address management and delivery serviceability checks
-- Order history, order tracking, and live order updates
-- Customer loyalty accounts and loyalty transactions
-- Party/catering order requests
-- Kitchen display workflows and late-order alerts
-- Central administration and outlet manager menu/order management
-- Clerk authentication with role and outlet-based authorization
-- WhatsApp OTP support through WAHA
-- AI-assisted preparation-time estimates through Groq, when configured
+> **Evaluation note:** This repository includes evaluation-only demo account details in [`docs/TESTING-GUIDE.md`](docs/TESTING-GUIDE.md). These accounts are intended only for testing this demo deployment. Do not reuse their passwords elsewhere or store real customer data in the demo environment. Rotate or disable the accounts after the evaluation period.
+
+## Product capabilities
+
+### Customer experience
+- Browse Hyderabad outlets and outlet-specific menus.
+- View menu categories, item details, variants, add-ons, dietary attributes, spice information, and preparation estimates.
+- Add items to a cart and complete the checkout flow.
+- Save delivery details and check outlet serviceability using a selected map location.
+- View order history and order status updates.
+- Access loyalty-related functionality.
+- Submit and review party/catering requests.
+
+### Kitchen and outlet operations
+- Kitchen Display System (KDS) for monitoring and progressing incoming orders.
+- Real-time order updates using Socket.IO.
+- Late-order alert support.
+- Outlet-scoped manager workflows for menu and order management.
+
+### Central administration
+- Central admin interface for platform-level management.
+- Management features for outlets, menus, orders, and coupons, subject to the role permissions implemented by the API.
 
 ## Technology stack
 
-### Frontend
+| Layer | Technologies | Purpose |
+|---|---|---|
+| Frontend | React 19, TypeScript 5.9, Vite 8 | Component-based customer and operations interfaces |
+| Styling and UI | Tailwind CSS 4, Lucide React | Responsive styling and icons |
+| Routing and identity | React Router 7, Clerk React | Client-side navigation and sign-in/session integration |
+| Maps | Leaflet 1.9, React Leaflet 5, OpenStreetMap tiles | Interactive map, pin selection, and location coordinates |
+| Real-time | Socket.IO Client 4 | Live order and kitchen updates |
+| Backend | Node.js, TypeScript, Express 5 | REST API and application logic |
+| Authentication | Clerk Express / Clerk Backend SDK | Verify identity and protect API/socket connections |
+| Database | PostgreSQL, Neon, Prisma 7, `pg` | Persistent application data and ORM/data access |
+| Messaging | WAHA (WhatsApp HTTP API) | Send WhatsApp OTP messages through a linked WhatsApp session |
+| AI-assisted estimates | Groq API (optional) | Optional preparation-time estimation where configured |
+| Testing and quality | Vitest, ESLint, TypeScript | Frontend tests, linting, and type/build checks |
+| Deployment | Vercel, Render | Frontend hosting and backend API hosting |
 
-- React 19
-- TypeScript 5.9
-- Vite 8
-- React Router 7
-- Clerk React for authentication
-- Tailwind CSS 4
-- Leaflet and React Leaflet for location and map features
-- Lucide React for icons
-- Socket.IO Client for real-time updates
-- Vitest for frontend tests
+## Architecture overview
 
-### Backend
-
-- Node.js with TypeScript
-- Express 5
-- Clerk Express and Clerk Backend SDK for authentication
-- Socket.IO for authenticated real-time communication
-- Prisma 7 ORM
-- PostgreSQL, using the `pg`, Prisma PostgreSQL, and Neon adapters
-- CORS and dotenv
-
-### Development and data
-
-- npm workspaces
-- Prisma migrations and seed data
-- ESLint 10 with TypeScript and React plugins
-- PostgreSQL-compatible Neon database support
-- WAHA integration for WhatsApp OTP delivery
-- Groq integration for optional preparation-time estimation
-
-## Repository structure
+The repository is an npm-workspaces monorepo with two applications:
 
 ```text
 KitchenFlow/
-├── package.json                    # Root npm workspace configuration
-├── package-lock.json               # Locked dependency versions
 ├── apps/
-│   ├── web/                        # Frontend: React/Vite web application
-│   │   ├── package.json            # Frontend scripts and dependencies
-│   │   ├── index.html              # Vite HTML entry point
-│   │   ├── public/                 # Static public assets and icons
-│   │   └── src/
-│   │       ├── main.tsx            # React and Clerk application bootstrap
-│   │       ├── App.tsx             # Frontend routes and providers
-│   │       ├── assets/             # Images and bundled assets
-│   │       ├── components/         # Shared UI components
-│   │       ├── features/           # Customer, checkout, orders, kitchen,
-│   │       │                        # admin, manager, menu, and outlet features
-│   │       ├── hooks/              # Shared React hooks
-│   │       ├── lib/                # API, Socket.IO, and shared integrations
-│   │       ├── App.css             # Application-level styles
-│   │       └── index.css           # Global styles and Tailwind imports
-│   │
-│   └── api/                        # Backend: Express/Socket.IO API server
-│       ├── package.json            # Backend scripts and dependencies
-│       ├── prisma/
-│       │   ├── schema.prisma       # PostgreSQL data model
-│       │   ├── migrations/         # Versioned database migrations
-│       │   ├── seed.ts             # Database seed entry point
-│       │   └── seed-data/          # Demo outlets and menu data
-│       └── src/
-│           ├── index.ts            # HTTP and Socket.IO server startup
-│           ├── app.ts              # Express app, middleware, and API routes
-│           ├── config/             # Environment configuration and validation
-│           ├── lib/                # Prisma client and shared integrations
-│           ├── middleware/         # Authentication, authorization, and errors
-│           ├── modules/            # Domain routes and services:
-│           │                        # auth, address, cart, menu, orders,
-│           │                        # outlets, party, kitchen, and management
-│           ├── routes/              # Cross-domain routes such as serviceability
-│           └── utils/               # Shared error and utility helpers
-│
-└── postman/                        # API request and workspace resources
+│   ├── web/                 # React + TypeScript + Vite frontend
+│   └── api/                 # Express + TypeScript + Socket.IO backend
+├── docs/
+│   ├── TESTING-GUIDE.md     # Demo accounts and suggested evaluation flow
+│   └── OUTLET-LOCATION-NOTES.md
+├── package.json             # npm workspaces
+└── README.md
 ```
 
-The project is intentionally split into two independently runnable applications:
+- **Web application (`apps/web`)** renders the customer, KDS, manager, and central-admin experiences. It calls the backend using the configured `VITE_API_URL`.
+- **API (`apps/api`)** exposes REST endpoints, applies authentication/authorization middleware, executes business logic, and accesses PostgreSQL through Prisma.
+- **Database** stores users, role/outlet assignments, outlets, menu data, carts, orders, party requests, loyalty data, OTP records, and other operational entities represented in the Prisma schema.
+- **Real-time channel** is provided by Socket.IO. The frontend sends a Clerk token in the socket handshake. The backend verifies it and derives authorized customer/outlet rooms from database assignments; clients do not get to choose arbitrary authorized rooms.
 
-- **Frontend (`apps/web`)** provides the customer, kitchen, manager, and admin user interfaces. It calls the API through the configured `VITE_API_URL` and receives authenticated real-time updates through Socket.IO.
-- **Backend (`apps/api`)** provides REST endpoints, authentication and authorization middleware, business logic, database access through Prisma, and the Socket.IO server. It uses PostgreSQL for users, outlets, menus, carts, orders, party requests, loyalty, and kitchen data.
+## Authentication and authorization
 
-## Prerequisites
+Clerk handles external identity and session management. KitchenFlow maps the authenticated Clerk identity to its own database user and role/outlet assignments.
 
-- Node.js 20 or newer
-- npm 10 or newer
-- A PostgreSQL database (Neon is supported)
-- A Clerk application
-- WAHA only if WhatsApp OTP is enabled
-- A Groq API key only if AI preparation-time estimates are enabled
-
-## Installation
-
-Clone the repository and install all workspace dependencies from the root:
-
-```bash
-npm install
-```
-
-Create the API environment file at `apps/api/.env`:
-
-```env
-DATABASE_URL=postgresql://<user>:<password>@<host>/<database>?sslmode=require
-PORT=4000
-WEB_URL=http://localhost:5173
-CLERK_SECRET_KEY=<clerk-secret-key>
-WAHA_BASE_URL=http://localhost:3001
-WAHA_API_KEY=<waha-api-key>
-OTP_HASH_SECRET=<long-random-secret>
-
-# Optional AI preparation-time estimation
-GROQ_API_KEY=<groq-api-key>
-GROQ_MODEL=openai/gpt-oss-20b
-```
-
-Create the frontend environment file at `apps/web/.env.local`:
-
-```env
-VITE_CLERK_PUBLISHABLE_KEY=<clerk-publishable-key>
-VITE_API_URL=http://localhost:4000
-```
-
-Do not commit `.env`, `.env.*`, or any API keys. The repository ignores local environment files by default.
-
-## Database setup
-
-Run Prisma commands from the API workspace:
-
-```bash
-# Generate the Prisma client
-npm --workspace @kitchenflow/api exec prisma generate
-
-# Apply existing migrations to the configured database
-npm --workspace @kitchenflow/api exec prisma migrate deploy
-
-# Seed Hyderabad outlets and the shared demo menu
-npm --workspace @kitchenflow/api exec prisma db seed
-```
-
-For local schema development, use a migration instead of editing the database manually:
-
-```bash
-npm --workspace @kitchenflow/api exec prisma migrate dev --name describe-your-change
-```
-
-The Prisma schema is in `apps/api/prisma/schema.prisma`. Migrations are stored in `apps/api/prisma/migrations`.
-
-## Running locally
-
-Start the API in one terminal:
-
-```bash
-npm run dev --workspace @kitchenflow/api
-```
-
-Start the web application in another terminal:
-
-```bash
-npm run dev --workspace web
-```
-
-The default local URLs are:
-
-- Web app: `http://localhost:5173`
-- API: `http://localhost:4000`
-- API health check: `http://localhost:4000/api/health`
-- Database health check: `http://localhost:4000/api/health/db`
-
-## Available scripts
-
-### Root
-
-```bash
-npm install
-```
-
-### Web app (`apps/web`)
-
-```bash
-npm run dev --workspace web       # Start Vite development server
-npm run build --workspace web     # Type-check and create production build
-npm run lint --workspace web      # Run ESLint
-npm run test --workspace web      # Run Vitest
-npm run preview --workspace web   # Preview the production build
-```
-
-### API (`apps/api`)
-
-```bash
-npm run dev --workspace @kitchenflow/api    # Start API with tsx watch
-npm run build --workspace @kitchenflow/api  # Compile TypeScript
-npm run start --workspace @kitchenflow/api  # Run compiled API
-```
-
-## API areas
-
-The API is organized around these route groups:
-
-| Area | Base path |
-| --- | --- |
-| Serviceability | `/api/serviceability` |
-| Menu | `/api/menu` |
-| Cart | `/api/cart` |
-| Orders | `/api/orders` |
-| Loyalty | `/api/loyalty` |
-| Party orders | `/api/party` |
-| Kitchen | `/api/kitchen` |
-| Management | `/api/management` |
-| Outlet manager orders | `/api/management/manager/orders` |
-| Outlet manager menu | `/api/management/manager/menu-items` |
-| Outlets | `/api/outlets` |
-| Authentication | `/api/auth` |
-| Addresses | `/api/addresses` |
-
-Protected HTTP routes use Clerk bearer tokens. Socket.IO connections are also authenticated with a Clerk token and are assigned to server-authorized customer and outlet rooms.
-
-## Frontend routes
-
-The main UI routes include:
-
-- `/` - Landing page
-- `/outlets` - Outlet selection
-- `/outlets/:outletId/menu` - Outlet menu
-- `/cart` - Cart
-- `/checkout` - Authenticated checkout
-- `/orders` and `/orders/:orderId` - Orders and tracking
-- `/customer/:outletId` - Customer dashboard
-- `/customer/:outletId/party` - Party order request
-- `/kitchen` - Kitchen display
-- `/manager` - Outlet manager tools
-- `/admin` - Central administration
-
-## Testing and verification
-
-Before opening a pull request, run the checks relevant to your change:
-
-```bash
-npm run lint --workspace web
-npm run test --workspace web -- --run
-npm run build --workspace web
-npm run build --workspace @kitchenflow/api
-```
-
-The API build requires a valid API environment because Prisma and the server configuration load environment variables during development.
-
-## Authentication and roles
-
-Clerk provides the external identity. KitchenFlow stores the internal user and role assignments in PostgreSQL. The data model supports:
-
+Roles represented in the application include:
 - `CUSTOMER`
 - `CENTRAL_ADMIN`
 - `OUTLET_MANAGER`
 - `KITCHEN_STAFF`
 - `CATERING_MANAGER`
 
-Outlet staff assignments are scoped to active outlets, which is also used when authorizing Socket.IO outlet rooms.
+Protected API requests use a Clerk bearer token. Socket.IO connections are authenticated separately using the Clerk token in the Socket.IO handshake. The API resolves the user's internal identity and active outlet assignments before joining authorized rooms.
 
-## Contributing
+## WhatsApp OTP with WAHA
 
-1. Create a focused branch.
-2. Keep frontend and API changes in their respective workspace.
-3. Add or update Prisma migrations for schema changes.
-4. Update seed data when local development data needs to change.
-5. Run the relevant lint, test, and build commands.
-6. Never commit credentials, production URLs, or generated secrets.
+KitchenFlow uses **WAHA (WhatsApp HTTP API)** as the messaging bridge for WhatsApp OTP delivery.
+
+The backend's WhatsApp service sends a `POST` request to:
+
+```text
+{WAHA_BASE_URL}/api/sendText
+```
+
+It supplies the configured `X-Api-Key` header and sends a message payload containing:
+- `session: "default"`
+- the recipient's WhatsApp chat ID (normalized phone number with `@c.us`)
+- the OTP message text
+
+### How the demo setup works
+
+1. WAHA runs as a Docker container on the machine hosting the WhatsApp session.
+2. The WhatsApp account is linked to WAHA's `default` session by scanning the QR code shown by WAHA.
+3. The API calls WAHA's `/api/sendText` endpoint to send OTP messages.
+4. For the deployed Render API, `localhost` on Render cannot reach a WAHA container running on a developer's laptop. During this demo, a **Cloudflare Quick Tunnel** was used to expose the local WAHA HTTP endpoint to Render.
+5. Render's `WAHA_BASE_URL` points to that tunnel URL, while `WAHA_API_KEY` remains configured as a secret.
+
+**Important availability limitation:** A Cloudflare Quick Tunnel URL is temporary and the tunnel depends on the host computer, Docker, WAHA, and the `cloudflared` process remaining online. If the tunnel stops or its URL changes, WhatsApp OTP delivery from the deployed app will stop until the tunnel is restarted and Render's `WAHA_BASE_URL` is updated. This is a demo/testing arrangement, not a production-grade always-on messaging deployment.
+
+Never commit the WAHA API key, dashboard credentials, OTP hash secret, or any tunnel credentials. For a long-lived production deployment, host WAHA or an equivalent WhatsApp provider on reliable infrastructure with appropriate security and operational controls.
+
+### If a tester does not receive a WhatsApp OTP
+
+The testing guide includes a dedicated demo customer account so evaluators can explore the customer experience without depending on delivery of a WhatsApp message. This is a fallback for evaluation, not a claim that WhatsApp delivery is unnecessary for the phone-verification flow.
+
+## Map and delivery-location behaviour
+
+KitchenFlow uses **Leaflet** and **React Leaflet** to render the interactive map, with map tiles attributed to **© OpenStreetMap contributors**.
+
+The map supports:
+- clicking/tapping the map to place or move a delivery pin;
+- using the browser's current-location permission, when granted;
+- reading the selected latitude and longitude;
+- sending those coordinates to the backend serviceability endpoint.
+
+The backend calculates the distance between the selected coordinates and seeded outlet coordinates and compares that distance with each outlet's configured delivery radius.
+
+**Address-entry limitation:** The map picker is coordinate-based. The current implementation does not perform reverse geocoding to turn a pin into a verified street address, and it does not validate every free-text address field against a geocoding/address database. A tester should therefore enter a clear delivery description manually (for example, building/apartment, street or landmark, area, and PIN code) and use the map pin for the actual serviceability check. Do not interpret a typed address alone as proof that the location is serviceable.
+
+See [`docs/OUTLET-LOCATION-NOTES.md`](docs/OUTLET-LOCATION-NOTES.md) for seeded outlet coordinates and a Madhapur testing location.
+
+## Local development
+
+### Prerequisites
+- Node.js 20+ (use a current LTS release where possible)
+- npm 10+
+- PostgreSQL database (Neon is supported)
+- Clerk application keys
+- WAHA only if testing WhatsApp OTP delivery
+- Groq API key only if enabling the optional AI-assisted estimate feature
+
+### Install dependencies
+
+Run from the repository root:
+
+```bash
+npm install
+```
+
+### Configure environment variables
+
+Create `apps/api/.env`:
+
+```env
+DATABASE_URL=postgresql://<user>:<password>@<host>/<database>?sslmode=require
+PORT=4000
+WEB_URL=http://localhost:5173
+CLERK_SECRET_KEY=<clerk-secret-key>
+
+# WAHA / WhatsApp OTP
+WAHA_BASE_URL=http://localhost:3001
+WAHA_API_KEY=<waha-api-key>
+OTP_HASH_SECRET=<long-random-secret>
+
+# Optional AI-assisted preparation-time estimates
+GROQ_API_KEY=<groq-api-key>
+GROQ_MODEL=<configured-groq-model>
+```
+
+Create `apps/web/.env.local`:
+
+```env
+VITE_CLERK_PUBLISHABLE_KEY=<clerk-publishable-key>
+VITE_API_URL=http://localhost:4000
+```
+
+Do not commit `.env` files or secrets. In production, set the corresponding variables in the Vercel and Render project settings.
+
+### Database setup
+
+Run from the repository root:
+
+```bash
+npm --workspace @kitchenflow/api exec prisma generate
+npm --workspace @kitchenflow/api exec prisma migrate deploy
+npm --workspace @kitchenflow/api exec prisma db seed
+```
+
+The seed script creates/updates the Hyderabad outlets and shared demo menu. It is intended for the configured database; do not run it against a production database unless you intend to apply the seed data there.
+
+### Start the applications
+
+Terminal 1 — API:
+
+```bash
+npm run dev --workspace @kitchenflow/api
+```
+
+Terminal 2 — frontend:
+
+```bash
+npm run dev --workspace web
+```
+
+Local URLs:
+- Frontend: http://localhost:5173
+- API: http://localhost:4000
+- API health: http://localhost:4000/api/health
+- Database health: http://localhost:4000/api/health/db
+
+## Useful scripts
+
+```bash
+# Frontend
+npm run dev --workspace web
+npm run build --workspace web
+npm run lint --workspace web
+npm run test --workspace web -- --run
+npm run preview --workspace web
+
+# Backend
+npm run dev --workspace @kitchenflow/api
+npm run build --workspace @kitchenflow/api
+npm run start --workspace @kitchenflow/api
+```
+
+## API route groups
+
+| Area | Base path |
+|---|---|
+| Serviceability | `/api/serviceability` |
+| Menu | `/api/menu` |
+| Cart | `/api/cart` |
+| Orders | `/api/orders` |
+| Loyalty | `/api/loyalty` |
+| Party requests | `/api/party` |
+| Kitchen | `/api/kitchen` |
+| Management | `/api/management` |
+| Manager orders | `/api/management/manager/orders` |
+| Manager menu items | `/api/management/manager/menu-items` |
+| Outlets | `/api/outlets` |
+| Authentication | `/api/auth` |
+| Addresses | `/api/addresses` |
+
+## Main frontend routes
+
+| Route | Purpose |
+|---|---|
+| `/` | Landing page |
+| `/outlets` | Outlet discovery and delivery-location selection |
+| `/outlets/:outletId/menu` | Outlet menu |
+| `/cart` | Shopping cart |
+| `/checkout` | Checkout |
+| `/orders` and `/orders/:orderId` | Order history and order details |
+| `/customer/:outletId` | Customer outlet experience |
+| `/customer/:outletId/party` | Party/catering request flow |
+| `/kitchen` | Kitchen Display System |
+| `/manager` | Outlet manager dashboard |
+| `/admin` | Central administration |
+
+## Deployment
+
+The current demo deployment uses:
+- **Vercel** for the frontend: https://kitchen-flow-lemon.vercel.app/
+- **Render** for the API: https://kitchenflow-mept.onrender.com
+- **Neon/PostgreSQL** for persistent database storage.
+- **Clerk** for authentication.
+- **WAHA + Cloudflare Quick Tunnel** for the current demo WhatsApp OTP bridge (see the limitations above).
+
+The frontend's `VITE_API_URL` must point to the Render API URL. The backend's `WEB_URL` must match the deployed frontend origin exactly for HTTP and Socket.IO CORS. If using a Vercel preview deployment, its origin must be explicitly supported by the backend CORS configuration; the permanent production domain is the intended evaluation URL.
+
+## Evaluation / testing
+
+Start with the live app: **https://kitchen-flow-lemon.vercel.app/**
+
+Use [`docs/TESTING-GUIDE.md`](docs/TESTING-GUIDE.md) for:
+- demo customer, Madhapur kitchen staff, Madhapur manager, and central admin accounts;
+- suggested end-to-end testing order;
+- WhatsApp OTP fallback guidance;
+- known map/address behaviour and default outlet test location.
+-if the yasked for otp in the demo account use 424242
+
+Use [`docs/OUTLET-LOCATION-NOTES.md`](docs/OUTLET-LOCATION-NOTES.md) for seeded outlet coordinates, service radii, and map-pin guidance.
+
+## Known demo constraints
+
+- WhatsApp delivery depends on the developer-hosted WAHA session and temporary Cloudflare Quick Tunnel described above.
+- The map pin captures coordinates; free-text address values are not automatically reverse-geocoded or independently verified.
+- Vercel preview URLs are not necessarily included in the backend's exact-origin CORS allow-list; use the permanent production URL for evaluation.
+- Demo accounts are shared evaluation identities. Avoid entering real personal, payment, or sensitive information.
 
 ## License
 
-No project license has been declared yet.
+No open-source license has been specified in this repository. Unless a license is added, the source remains subject to the default copyright rules.
