@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useAuth } from "@clerk/react";
 import type { DeliveryAddress } from "../features/onboarding/components/AddressForm";
 
+const API_URL = (
+  import.meta.env.VITE_API_URL || "http://localhost:4000"
+).replace(/\/$/, "");
 export type OnboardingStep = "phone" | "address";
 
 export interface ServiceableOutlet {
@@ -98,7 +101,7 @@ export function useOnboarding() {
         isDefault: true,
       };
 
-      const saveResponse = await fetch("http://localhost:4000/api/addresses", {
+      const saveResponse = await fetch(`${API_URL}/api/addresses`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -122,7 +125,7 @@ export function useOnboarding() {
       
 
       const serviceabilityResponse = await fetch(
-        `http://localhost:4000/api/serviceability?latitude=${latitude}&longitude=${longitude}`,
+        `${API_URL}/api/serviceability?latitude=${latitude}&longitude=${longitude}`,
         {
           method: "GET",
           headers: {
